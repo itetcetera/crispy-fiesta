@@ -39,6 +39,15 @@ screen geometry, message text).
    identical results. This is repeatable and runs with `dotnet test`.
 3. The whole game advances in jiffies (1/60 s). Each player's input per jiffy is
    joystick direction + button, exactly what the original read.
+4. Timed phases are iterators run once per frame after a port of the vertical blank interrupt
+   (`Vbi`: jiffy clock, 4-jiffy timers, button latch, effect sound). Tests run the original phase
+   on the scanline Atari 800 (`Mule.Atari`) with the same presses and compare every event frame by
+   frame. Where the original's drawing code runs past a vertical blank inside a game loop, the port
+   waits the same frame (measured, and checked by the tests).
+5. One-off presentation pauses that depend on how long the 6502 takes to compute or draw (for
+   example the CPUs' thinking before the land grant) are modelled from measurements on the
+   original and match within a few frames. Gameplay timing (cursor speed, timers, who gets a
+   plot for a given press) matches exactly.
 
 ## Layout
 

@@ -59,6 +59,7 @@ public static class StateMapper
         new("mulePriceL", 0xB2B9, g => (byte)g.MulePrice, (g, v) => g.MulePrice = (ushort)((g.MulePrice & 0xFF00) | v)),
         new("mulePriceH", 0xB367, g => (byte)(g.MulePrice >> 8), (g, v) => g.MulePrice = (ushort)((g.MulePrice & 0xFF) | (v << 8))),
         new("prodMax", 0x0094, g => g.ProdMax, (g, v) => g.ProdMax = v),
+        new("cursorWait", 0xB36D, g => g.CursorWait, (g, v) => g.CursorWait = v),
         new("maxIndexCpu", 0x00D2, g => g.MaxIndexCpu, (g, v) => g.MaxIndexCpu = v),
     };
 
