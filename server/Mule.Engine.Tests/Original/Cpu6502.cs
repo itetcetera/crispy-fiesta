@@ -12,6 +12,43 @@ public sealed class Cpu6502
     public bool C, Z, I, D, V, N;
     public long Cycles;
 
+    // Base cycle counts per opcode (page-crossing penalties ignored); 0 = unused opcode.
+    static readonly byte[] CycleTable =
+    {
+        7,6,0,0,0,3,5,0,3,2,2,0,0,4,6,0, 2,5,0,0,0,4,6,0,2,4,0,0,0,4,7,0,
+        6,6,0,0,3,3,5,0,4,2,2,0,4,4,6,0, 2,5,0,0,0,4,6,0,2,4,0,0,0,4,7,0,
+        6,6,0,0,0,3,5,0,3,2,2,0,3,4,6,0, 2,5,0,0,0,4,6,0,2,4,0,0,0,4,7,0,
+        6,6,0,0,0,3,5,0,4,2,2,0,5,4,6,0, 2,5,0,0,0,4,6,0,2,4,0,0,0,4,7,0,
+        0,6,0,0,3,3,3,0,2,0,2,0,4,4,4,0, 2,6,0,0,4,4,4,0,2,5,2,0,0,5,0,0,
+        2,6,2,0,3,3,3,0,2,2,2,0,4,4,4,0, 2,5,0,0,4,4,4,0,2,4,2,0,4,4,4,0,
+        2,6,0,0,3,3,5,0,2,2,2,0,4,4,6,0, 2,5,0,0,0,4,6,0,2,4,0,0,0,4,7,0,
+        2,6,0,0,3,3,5,0,2,2,2,0,4,4,6,0, 2,5,0,0,0,4,6,0,2,4,0,0,0,4,7,0,
+    };
+
+    /// <summary>NTSC frame length in CPU cycles (262 lines x 114).</summary>
+    public const int CyclesPerFrame = 29868;
+
+    /// <summary>When true, an NMI (vertical blank) is raised every frame while NMIEN bit 6 is set.</summary>
+    public bool VblankEnabled;
+    public byte Nmien = 0x40;
+    public long Frames;
+    long _nextFrame = CyclesPerFrame;
+    public ushort OpPC;
+
+    /// <summary>True while servicing the vertical blank NMI (until its RTI).</summary>
+    public bool InNmi;
+    byte _nmiS;
+
+    void Nmi()
+    {
+        InNmi = true;
+        _nmiS = S;
+        Push((byte)(PC >> 8)); Push((byte)PC); Push((byte)(P & ~0x10));
+        I = true;
+        PC = Read16(0xFFFA);
+        Frames++;
+    }
+
     /// <summary>Called for reads of hardware registers ($D000-$D7FF). Return null to read RAM.</summary>
     public Func<ushort, byte?>? ReadHook;
 
@@ -25,7 +62,11 @@ public sealed class Cpu6502
         return Mem[a];
     }
 
-    public void Write(ushort a, byte v) => Mem[a] = v;
+    public void Write(ushort a, byte v)
+    {
+        if (a == 0xD40E) Nmien = v;
+        Mem[a] = v;
+    }
 
     ushort Read16(ushort a) => (ushort)(Read(a) | (Read((ushort)(a + 1)) << 8));
     ushort Read16Zp(byte a) => (ushort)(Read(a) | (Read((byte)(a + 1)) << 8));
@@ -67,9 +108,15 @@ public sealed class Cpu6502
 
     public void Step()
     {
+        if (VblankEnabled && Cycles >= _nextFrame)
+        {
+            _nextFrame += CyclesPerFrame;
+            if ((Nmien & 0x40) != 0 && !InNmi) Nmi();
+        }
         BeforeStep?.Invoke(this);
+        OpPC = PC;
         byte op = Read(PC++);
-        Cycles++;
+        Cycles += CycleTable[op] == 0 ? 2 : CycleTable[op];
         switch (op)
         {
             // LDA
@@ -235,7 +282,12 @@ public sealed class Cpu6502
                     break;
                 }
             case 0x60: { byte lo = Pop(); byte hi = Pop(); PC = (ushort)(((hi << 8) | lo) + 1); break; }
-            case 0x40: { P = Pop(); byte lo = Pop(); byte hi = Pop(); PC = (ushort)((hi << 8) | lo); break; }
+            case 0x40:
+                {
+                    P = Pop(); byte lo = Pop(); byte hi = Pop(); PC = (ushort)((hi << 8) | lo);
+                    if (InNmi && S == _nmiS) InNmi = false;
+                    break;
+                }
             // Branches
             case 0x10: Branch(!N); break;
             case 0x30: Branch(N); break;

@@ -35,6 +35,7 @@ public static class StateMapper
         new("playersRace", 0x091D, g => g.PlayersRace),
         new("playersTurnTimeWait", 0xB370, g => g.PlayersTurnTimeWait),
         new("outfitsPriceL", 0xB2B1, g => g.OutfitsPrice),
+        new("turnEventsHappened", 0xB34A, g => g.TurnEventsHappened),
     };
 
     static readonly WordField[] Words =
@@ -81,11 +82,12 @@ public static class StateMapper
     }
 
     /// <summary>Lists every field that differs between two states (empty when equal).</summary>
-    public static List<string> Diff(GameState expected, GameState actual)
+    public static List<string> Diff(GameState expected, GameState actual, params string[] ignore)
     {
         var d = new List<string>();
         foreach (var f in Bytes)
         {
+            if (ignore.Contains(f.Name)) continue;
             var a = f.Get(expected); var b = f.Get(actual);
             for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) d.Add($"{f.Name}[{i}]: original {a[i]}, port {b[i]}");
         }

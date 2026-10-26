@@ -20,6 +20,29 @@ public sealed class OriginalGame
 
     public int RandomReads { get; private set; }
 
+    /// <summary>While true, RANDOM reads return 0 and do not consume the scripted source (display-only code).</summary>
+    public bool Cosmetic;
+
+    /// <summary>When true, RANDOM reads made inside the vertical blank interrupt are treated as display-only.</summary>
+    public bool CosmeticInVblank = true;
+
+    /// <summary>Instruction addresses that switch <see cref="Cosmetic"/> on (the logic is done past them).</summary>
+    public readonly HashSet<ushort> CosmeticFrom = new();
+
+    /// <summary>Instruction addresses that switch <see cref="Cosmetic"/> off again.</summary>
+    public readonly HashSet<ushort> LogicFrom = new();
+
+    readonly System.Random _cosmeticRng = new(12345);
+
+    /// <summary>Joystick trigger registers TRIG0-3: 0 = pressed, 1 = released.</summary>
+    public readonly byte[] Triggers = { 1, 1, 1, 1 };
+
+    /// <summary>Joystick directions (4-bit, bit clear = pushed: 1 up, 2 down, 4 left, 8 right). 15 = centered.</summary>
+    public readonly byte[] Sticks = { 15, 15, 15, 15 };
+
+    /// <summary>Turns on the 60 Hz vertical blank interrupt.</summary>
+    public void EnableVblank() => Cpu.VblankEnabled = true;
+
     public OriginalGame(int seed = 1)
     {
         Snapshot.Value.CopyTo(Cpu.Mem, 0);
@@ -27,8 +50,23 @@ public sealed class OriginalGame
         Random = () => (byte)rng.Next(256);
         Cpu.ReadHook = a =>
         {
-            if (a == RandomRegister) { RandomReads++; return Random(); }
+            if (a == RandomRegister)
+            {
+                if (Cosmetic || (CosmeticInVblank && Cpu.InNmi)) return (byte)_cosmeticRng.Next(256);
+                RandomReads++;
+                return Random();
+            }
+            if (a == 0xD40F) return 0x5F; // NMIST: vertical blank
+            if (a == 0xD40B) return (byte)(Cpu.Cycles % Cpu6502.CyclesPerFrame / 114 / 2); // VCOUNT
+            if (a == 0xD010 || a == 0xD011 || a == 0xD012 || a == 0xD013) return Triggers[a - 0xD010];
+            if (a == 0xD300) return (byte)(Sticks[0] | (Sticks[1] << 4));
+            if (a == 0xD301) return (byte)(Sticks[2] | (Sticks[3] << 4));
             return null;
+        };
+        Cpu.BeforeStep = c =>
+        {
+            if (CosmeticFrom.Contains(c.PC)) Cosmetic = true;
+            if (LogicFrom.Contains(c.PC)) Cosmetic = false;
         };
     }
 
@@ -42,7 +80,7 @@ public sealed class OriginalGame
     public static ushort Sym(string label) =>
         SymbolTable.Value.TryGetValue(label, out var a) ? a : throw new KeyNotFoundException(label);
 
-    public void Call(string label, ushort? stopAt = null) => Cpu.Call(Sym(label), stopAt: stopAt);
+    public void Call(string label, ushort? stopAt = null, long maxSteps = 50_000_000) => Cpu.Call(Sym(label), maxSteps, stopAt);
 
     /// <summary>Reads a 6-byte Atari BCD floating point number (exponent byte, base 100).</summary>
     public long ReadFloat(ushort addr)
