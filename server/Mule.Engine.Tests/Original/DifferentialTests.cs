@@ -40,6 +40,7 @@ public class DifferentialTests
         g.GoodsPrice[Good.Crystite] = (ushort)r.Next(50, 150);
         for (int p = 0; p < 4; p++) g.PlayersCash[p] = (ushort)r.Next(0, 5000);
         Production.InitVarsFromMaps(g);
+        MapDisplay.DrawMap(g);
         return g;
     }
 
@@ -70,6 +71,19 @@ public class DifferentialTests
     {
         var diff = StateMapper.Diff(original, port);
         Assert.True(diff.Count == 0, what + ":\n" + string.Join("\n", diff.Take(20)));
+    }
+
+    [Fact]
+    public void DrawMap_matches()
+    {
+        for (int seed = 0; seed < 40; seed++)
+        {
+            var g = RandomState(seed);
+            Array.Clear(g.MapScreen);
+            var (o, p) = Run(g, seed, "drawMap", (s, _) => MapDisplay.DrawMap(s));
+            Assert.True(g.PlotsPlayer.All(x => x == GameState.Nobody) || o.MapScreen.Any(c => c != 0));
+            AssertSame(o, p, $"seed {seed}");
+        }
     }
 
     [Fact]

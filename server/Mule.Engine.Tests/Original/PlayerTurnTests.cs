@@ -78,13 +78,21 @@ public class PlayerTurnTests
         }
     }
 
-    sealed record Run(List<string> Events, GameState End, List<(bool, byte)[]> Inputs, int RandomReads);
+    sealed record Run(List<string> Events, GameState End, List<(bool, byte)[]> Inputs, int RandomReads, byte[] Timers);
 
     static Run RunOriginal(Scenario s)
     {
         var m = new MachineGame();
         StateMapper.ToRam(s.G, m.Ram);
         m.Ram[0xC1] = 0xFF; m.Ram[0x4E] = 0; m.Ram[0x9E] = 0xFF; m.Ram[0xC8] = 0;
+        // As after the land auction: the sprite pages cleared ($A2AF), then the map drawn.
+        m.M.CallRoutine(OriginalGame.Sym("initBB00ToBFFF"));
+        m.M.CallRoutine(OriginalGame.Sym("drawMap"));
+        m.Ram[0xC1] = 0xFF;
+        // Start the turn just after a vertical blank.
+        m.M.Cpu.A = 1;
+        m.M.CallRoutine(OriginalGame.Sym("waitJiffy"));
+        var timers = new[] { m.Ram[0x14], m.Ram[0xC3], m.Ram[0xC4], m.Ram[0xC5], m.Ram[0xC6] };
         var rng = new ScriptedRandom(s.Seed);
         m.Random = rng.NextByte;
         m.M.RandomOverride = pc => m.M.InVblank && WampusRandomPcs.Contains(pc) ? rng.NextByte() : null;
@@ -101,7 +109,7 @@ public class PlayerTurnTests
                 case 0x5BB5:
                     {
                         // The state the last frame left, then this frame's controls.
-                        string w = $"w {r[0x9F]:X2} {r[0xA3]:X2} {r[0xD3]} {r[0xE0]} {r[0xBC]} {r[0xAD]}" + (r[0xE0] != 0 ? $" m {r[0xA0]:X2} {r[0xA4]:X2}" : "") + (Debug ? $" a {r[0xA9]:X2} c {r[0xC1]:X2} s {r[0x9E]:X2}" : "");
+                        string w = $"w {r[0x9F]:X2} {r[0xA3]:X2} {r[0xD3]} {r[0xE0]} {r[0xBC]} {r[0xAD]}" + (r[0xE0] != 0 ? $" m {r[0xA0]:X2} {r[0xA4]:X2}" : "") + (r[0xAD] != 0 ? $" c {m.M.Read(0xD00C) & 0x0C:X} {(m.M.Read(0xD004) != 0 ? 1 : 0)}" : "") + (Debug ? $" a {r[0xA9]:X2} c {r[0xC1]:X2} s {r[0x9E]:X2}" : "");
                         if (w != last && vbi > 0) { events.Add($"{vbi} {w}"); last = w; }
                         vbi++;
                         var inp = new (bool, byte)[4];
@@ -130,14 +138,16 @@ public class PlayerTurnTests
         };
         m.M.CallRoutine(OriginalGame.Sym("playersTurn"), 60_000);
         events.Add($"{vbi} done");
-        return new Run(events, StateMapper.FromRam(m.Ram), inputs, rng.Position);
+        return new Run(events, StateMapper.FromRam(m.Ram), inputs, rng.Position, timers);
     }
 
-    static Run RunPort(Scenario s, List<(bool, byte)[]> inputs, List<string>? original = null)
+    static Run RunPort(Scenario s, List<(bool, byte)[]> inputs, byte[] timers, List<string>? original = null)
     {
         var state = StateMapper.FromRam(Clone(s.G));
         var rng = new ScriptedRandom(s.Seed);
         var game = new Game(state, rng);
+        game.Vbi.RtClock = timers[0];
+        for (int i = 0; i < 4; i++) game.Vbi.Timers[i] = timers[i + 1];
         var events = new List<string>();
         Turn? turn = null;
         game.Trace = e =>
@@ -179,15 +189,21 @@ public class PlayerTurnTests
             for (int i = seen; i < game.Events.Count; i++)
                 if (game.Events[i] is TurnMessageEvent tm && tm.Code is > 0 and < 30 && tm.Text == "") events.Add($"{game.Frame} msg {tm.Code}");
             turn = game.Turn;
-            if (turn != null)
+            if (turn != null && !game.Finished)
             {
-                string w = $"w {turn.X:X2} {turn.Y:X2} {turn.Time} {turn.HasMule} {turn.Outfit} {turn.Map}" + (turn.HasMule != 0 ? $" m {turn.MuleX:X2} {turn.MuleY:X2}" : "") + (Debug ? $" a {turn.Phase:X2} s {game.Vbi.Sound:X2}" : "");
+                string w = $"w {turn.X:X2} {turn.Y:X2} {turn.Time} {turn.HasMule} {turn.Outfit} {turn.Map}" + (turn.HasMule != 0 ? $" m {turn.MuleX:X2} {turn.MuleY:X2}" : "") + (turn.Map != 0 ? Collisions(state, turn) : "") + (Debug ? $" a {turn.Phase:X2} s {game.Vbi.Sound:X2}" : "");
                 if (w != last) { events.Add($"{game.Frame} {w}"); last = w; }
             }
             if (game.Frame > 60_000) throw new TimeoutException();
         }
         events.Add($"{game.Frame} done");
-        return new Run(events, state, inputs, rng.Position);
+        return new Run(events, state, inputs, rng.Position, timers);
+    }
+
+    static string Collisions(GameState g, Turn t)
+    {
+        var (pl, pf) = MapCollisions.Compute(g, t);
+        return $" c {pl:X} {(pf ? 1 : 0)}";
     }
 
     static int Races;
@@ -203,7 +219,7 @@ public class PlayerTurnTests
         {
             var s = Make(seed);
             var o = RunOriginal(s);
-            var p = RunPort(s, o.Inputs, o.Events);
+            var p = RunPort(s, o.Inputs, o.Timers, o.Events);
             if (Debug)
             {
                 File.WriteAllLines($"/tmp/claude-0/turn_o_{seed}.txt", o.Events);
@@ -212,6 +228,7 @@ public class PlayerTurnTests
                 continue;
             }
             _out.WriteLine($"seed {seed}: {o.Events.Count} vs {p.Events.Count} events");
+            if (o.Events.Count != p.Events.Count || !o.Events.SequenceEqual(p.Events)) _out.WriteLine($"FAILED seed {seed}");
             int n = Math.Min(o.Events.Count, p.Events.Count);
             for (int i = 0; i < n; i++)
                 if (o.Events[i] != p.Events[i])

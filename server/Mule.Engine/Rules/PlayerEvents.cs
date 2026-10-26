@@ -91,6 +91,7 @@ public static class PlayerEvents
                     if (plot < 0) { tryAnother = true; return null; }
                     g.PlotsExp[plot] = Exp.None;
                     g.PlotsPlayer[plot] = GameState.Nobody;
+                    MapDisplay.DrawEmptyCell(g, plot);
                     return Happened(g, x, 0, plot);
                 }
             case 21:
@@ -98,6 +99,7 @@ public static class PlayerEvents
                     byte plot = Prices.RandomFreePlot(g, rng, out _);
                     if ((plot & 0x80) != 0) { tryAnother = true; return null; }
                     g.PlotsPlayer[plot] = (byte)player;
+                    MapDisplay.DrawCell(g, plot);
                     return Happened(g, x, 0, plot);
                 }
             default: // 9-19

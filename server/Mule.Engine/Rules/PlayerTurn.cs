@@ -34,23 +34,16 @@ public sealed class Turn
     public byte Flash, Flashes;       // $80, $88
     public bool Running;              // handler 4 ($C1 = 4)
     public bool MuleWalkOnly;         // handler $D ($5625 without the time bar and wampus)
-}
-
-/// <summary>Map collision flags for the walker, as the GTIA latched them during the last frame.</summary>
-public interface ITurnCollisions
-{
-    /// <summary>P0PL: bit 2 = mountains (player 2), bit 3 = river/store (player 3).</summary>
-    byte PlayerHits(Game game, Turn t);
-    /// <summary>P0PF: any playfield colour under the walker.</summary>
-    byte PlayfieldHits(Game game, Turn t);
+    /// <summary>Player 0's sprite memory ($BC00) and position register: the map collisions come
+    /// from them. Only the map drawing is kept: going to the map clears the page first.</summary>
+    public readonly byte[] Pm0 = new byte[256];
+    public byte Hpos0;
 }
 
 /// <summary>playersTurn ($6628): every player's development turn, in ranking order (reversed when the
 /// store has fewer than 8 mules).</summary>
 public static class PlayerTurn
 {
-    public static ITurnCollisions? Collisions;
-
     // Frames of drawing the original spends between its waits (measured; see the turn tests).
     const int TitleDrawFrames = 1;
 
@@ -213,6 +206,7 @@ public static class PlayerTurn
         t.Map = 1;
         t.Running = true;
         t.Phase = 4;
+        game.Vbi.Handler = () => Vbl(game, t);
     }
 
     /// <summary>sub_51BD's positions: the walker in the town street, at the side he came in.</summary>
@@ -235,6 +229,7 @@ public static class PlayerTurn
     static IEnumerable ToTown(Game game, Turn t)
     {
         t.Running = false;
+        ClearWalker(t);
         // sub_5064: the town's players 2 and 3 borrow the first quarter-row's positions.
         game.State.MountainsX[0] = 0;
         game.State.RiverStoreX[0] = 0x70;
@@ -251,6 +246,7 @@ public static class PlayerTurn
     static IEnumerable ToMap(Game game, Turn t)
     {
         t.Running = false;
+        ClearWalker(t);
         // The drawing before the first wait can run past the vertical blank when the caller has
         // just drawn a lot (the outfit message and the money).
         if (game.Race?.Invoke("map late") == true) yield return null;
@@ -527,6 +523,7 @@ public static class PlayerTurn
     static IEnumerable EndOfTurn(Game game, Turn t)
     {
         t.Toggle = 0;
+        ClearWalker(t);
         if (t.Map == 0)
         {
             yield return ToMapDisplay(game);
@@ -577,7 +574,7 @@ public static class PlayerTurn
         }
     }
 
-    static byte Hits(Game game, Turn t) => Collisions?.PlayerHits(game, t) ?? 0;
+    static byte Hits(Game game, Turn t) => MapCollisions.Compute(game.State, t).Players;
 
     /// <summary>$6B5F: the button on a plot.</summary>
     static IEnumerable PlotAction(Game game, Turn t)
@@ -712,6 +709,8 @@ public static class PlayerTurn
         if (t.Map == 0) TownChecks(game, t); else MapChecks(game, t);
         t.Y = t.NewY;
         t.X = t.NewX;
+        t.Hpos0 = t.X;
+        if (t.Map != 0) DrawWalker(g, t);
         if (t.HasMule == 0) return;
         if (t.Map == 0) TownMule(t); else MapMule(t);
     }
@@ -775,14 +774,29 @@ public static class PlayerTurn
     {
         if (t.NewX < 0x37 || t.NewX >= 0xC6) t.NewX = t.X;
         if (t.NewY < 0x2C || t.NewY >= 0xC5) { t.NewY = t.Y; return; }
-        byte hits = Hits(game, t);
+        var (hits, playfield) = MapCollisions.Compute(game.State, t);
         if ((hits & 4) != 0)
         {
-            if ((Collisions?.PlayfieldHits(game, t) ?? 0) != 0) return;
+            if (playfield) return;
             t.Phase = 0xF1;
         }
         else if ((hits & 8) != 0) t.Phase = 0xF8;
     }
+
+    /// <summary>$569E: clear around the walker (sub_53B7), then draw his frame (sub_5370), 7 rows on
+    /// the map.</summary>
+    static void DrawWalker(GameState g, Turn t)
+    {
+        for (int i = 0; i <= 0x1C; i++) t.Pm0[(byte)(t.Y - 3 + i)] = 0;
+        var frames = WalkerFrames(g.PlayersRace[g.CurrentPlayer]);
+        for (int k = 1; k < 8; k++) t.Pm0[(byte)(t.Y + k)] = frames[(t.Anim + k) & 0x7F];
+    }
+
+    // TODO: the snapshot holds only the Mechtron and Bonzoid frames; the others need the disk image.
+    static byte[] WalkerFrames(byte race) => MapGraphics.WalkerMap((Race)race) ?? MapGraphics.MechtronMap;
+
+    /// <summary>sub_4C61 on the walker's page.</summary>
+    static void ClearWalker(Turn t) => Array.Clear(t.Pm0);
 
     /// <summary>$5853: when the time has run out, a mule being led walks off the screen.</summary>
     static void MuleWalksOff(Turn t)

@@ -68,6 +68,17 @@ screen geometry, message text).
      "slow tick", "slow unit", "quit late", "unit first"); the goods tests answer those questions with what the
      original did, so every other rule is checked exactly. The rare order comes up about 2-3
      times per auction, and shifts the trading by one jiffy.
+   - In the development turns, the money and message drawing now and then runs past a blank
+     ("title quick", "player late", "map late", "message first"); the turn tests answer these.
+7. Map collisions. On the map, mountains and the river slow the walker, and touching the river
+   or store near the middle takes him into town, only where the sprites' pixels overlap, as the
+   GTIA latches them. The port keeps what decides them as state: the mountain and river sprite
+   rows made with the map (`SprMount`, `SprRiver`), the map's characters (`MapScreen`, the plot
+   frames) and the walker's sprite memory, and computes the overlaps scanline by scanline
+   (`MapCollisions`). The turn tests compare the result with the emulator's collision registers
+   every frame. Open points: the snapshot holds the walking sprites of only the Mechtron and the
+   Bonzoid (the other six fall back to the Mechtron's until the disk image provides them), and the
+   round-event text printed over the map is not modelled yet.
 
 ## Layout
 
