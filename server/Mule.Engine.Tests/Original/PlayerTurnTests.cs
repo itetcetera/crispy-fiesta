@@ -25,6 +25,13 @@ public class PlayerTurnTests
         var r = new Random(seed * 31 + 7);
         for (int p = 0; p < 4; p++) g.PlayersAi[p] = (byte)(8 + p);
         g.MaxIndexCpu = 0xFF;
+        // The CPU players come first; a third of the scenarios have none.
+        var c = new Random(seed * 17 + 3);
+        if (c.Next(3) != 0)
+        {
+            g.MaxIndexCpu = (byte)c.Next(0, 4);
+            for (int p = 0; p <= g.MaxIndexCpu; p++) g.PlayersAi[p] = 0xFF;
+        }
         g.Level = (byte)(r.Next(3) == 0 ? 0 : 2);
         for (int p = 0; p < 4; p++) if (r.Next(3) == 0) g.GoodsPlayersNb[p] = (byte)r.Next(0, 3);
         return new Scenario(g, seed);
@@ -146,6 +153,7 @@ public class PlayerTurnTests
     sealed record Run(List<string> Events, GameState End, List<(bool, byte)[]> Inputs, int RandomReads, byte[] Timers);
 
     static readonly SortedDictionary<string, int> Coverage = new();
+    static readonly List<string> Thinks = new();
     static void Covered(string what) => Coverage[what] = Coverage.GetValueOrDefault(what) + 1;
 
     static Run RunOriginal(Scenario s)
@@ -171,8 +179,13 @@ public class PlayerTurnTests
         bool starting = false;
         string last = "";
         var r = m.Ram;
+        ushort prevPc = 0;
         m.M.AfterStep = c =>
         {
+            // An interrupt's RTI returns to an instruction already reported: count it once.
+            bool afterRti = m.M.Read(prevPc) == 0x40;
+            prevPc = c.PC;
+            if (afterRti) return;
             switch (c.PC)
             {
                 case 0x5BB5:
@@ -190,7 +203,7 @@ public class PlayerTurnTests
                         var inp = new (bool, byte)[4];
                         for (int p = 0; p < 4; p++)
                         {
-                            inp[p] = p == r[0xAC] ? agents[p].Next(r, starting) : (false, (byte)15);
+                            inp[p] = p == r[0xAC] && r[0x900 + p] < 0x80 ? agents[p].Next(r, starting) : (false, (byte)15);
                             m.M.Buttons[p] = inp[p].Item1;
                             m.M.Sticks[p] = inp[p].Item2;
                         }
@@ -210,6 +223,9 @@ public class PlayerTurnTests
                 case 0x6AF2: events.Add($"{vbi} end"); break;
                 case 0x4A32: events.Add($"{vbi} msg {c.X}"); Covered($"msg {c.X}"); break;
                 case 0x8C1C: Covered("wampus caught"); break;
+                case 0x384E: events.Add($"{vbi} install {r[0xB324]} {c.X}"); Covered("cpu install"); break;
+                case 0x38CD: events.Add($"{vbi} assay {r[0xCB]}"); Covered("cpu assay"); break;
+                case 0x3908: events.Add($"{vbi} sync"); break;
                 case 0x6C92: if (r[0xE0] != 0 && r[0xB0] != 0) Covered("mule escapes"); break;
             }
         };
@@ -232,7 +248,7 @@ public class PlayerTurnTests
         Turn? turn = null;
         game.Trace = e =>
         {
-            if (e.StartsWith("player") || e == "pressed" || e == "event" || e == "food" || e == "enter" || e == "exit" || e == "gamble" || e == "timeout" || e == "end")
+            if (e.StartsWith("player") || e == "sync" || e.StartsWith("install") || e.StartsWith("assay") || e == "pressed" || e == "event" || e == "food" || e == "enter" || e == "exit" || e == "gamble" || e == "timeout" || e == "end")
                 events.Add($"{VFrame()} {e}");
         };
         if (original != null)
@@ -240,6 +256,15 @@ public class PlayerTurnTests
             var at = original.Select(e => (long.Parse(e[..e.IndexOf(' ')]), e[(e.IndexOf(' ') + 1)..])).ToList();
             // The original's events from the start of the turn of the player now starting.
             IEnumerable<(long, string)> FromPlayer() => at.Skip(at.FindLastIndex(e => e.Item1 <= VFrame() && e.Item2.StartsWith("player")));
+            game.Think = q =>
+            {
+                var (f, e) = at.Skip(events.Count).FirstOrDefault(x => !x.Item2.StartsWith("w "));
+                if (e == null) return null;
+                if (!(e.StartsWith("install") || e.StartsWith("assay") || e == "gamble" || e == "timeout")) return null;
+                int n = (int)(f - VFrame());
+                Thinks.Add($"{q} {n}");
+                return n;
+            };
             game.Race = q =>
             {
                 bool r = q switch
@@ -249,9 +274,14 @@ public class PlayerTurnTests
                     "player late" => VFrame() > 0 && FromPlayer().Skip(1).TakeWhile(e => e.Item2 != "event").FirstOrDefault(e => e.Item2.StartsWith("w ")).Item1 > VFrame(),
                     // The map screen comes 25 frames after sub_5227 starts, unless its first drawing ran late.
                     "map late" => at.First(e => e.Item1 > VFrame() && e.Item2.StartsWith("w ") && e.Item2.Split(' ')[6] == "1").Item1 > VFrame() + 25,
+                    "sync late" => at.Skip(events.Count).First(e => e.Item2 == "sync").Item1 > VFrame(),
+                    _ when q.StartsWith("time late ") => at.Skip(events.Count).First(e => e.Item2.StartsWith("w ") && e.Item2.Split(' ')[3] == q[10..]).Item1 > VFrame(),
+                    "button first" => at.Skip(events.Count).First(e => !e.Item2.StartsWith("w ")).Item2 != "timeout",
+                    "gamble late" => at.First(e => e.Item1 >= VFrame() && e.Item2 == "end").Item1 > VFrame() + 277,
                     _ => false,
                 };
                 if (r) Races++;
+                Covered($"race {(q.StartsWith("time late") ? "time late" : q)} {r}");
                 return r;
             };
         }
@@ -284,7 +314,13 @@ public class PlayerTurnTests
                 string w = $"w {turn.X:X2} {turn.Y:X2} {turn.Time} {turn.HasMule} {turn.Outfit} {turn.Map}" + (turn.HasMule != 0 ? $" m {turn.MuleX:X2} {turn.MuleY:X2}" : "") + (turn.Map != 0 ? Collisions(state, turn) : "") + (Debug ? $" a {turn.Phase:X2} s {game.Vbi.Sound:X2}" : "");
                 if (w != last) { events.Add($"{VFrame()} {w}"); last = w; }
             }
-            if (VFrame() > 60_000) throw new TimeoutException();
+            if (VFrame() > 60_000)
+            {
+                int i = 0;
+                while (original != null && i < events.Count && i < original.Count && events[i] == original[i]) i++;
+                string Ctx(List<string>? l) => l == null ? "" : string.Join("\n", l.Skip(Math.Max(0, i - 10)).Take(16));
+                throw new TimeoutException($"port did not finish; first difference at {i}\noriginal:\n{Ctx(original)}\nport:\n{Ctx(events)}");
+            }
         }
         events.Add($"{VFrame()} done");
         return new Run(events, state, inputs, rng.Position, timers);
@@ -309,6 +345,8 @@ public class PlayerTurnTests
         {
             var s = Make(seed);
             var o = RunOriginal(s);
+            if (Debug) File.WriteAllLines($"/tmp/claude-0/turn_in_{seed}.txt", o.Inputs.Select((x, i) => $"{i + 1} " + string.Join(" ", x.Select(y => $"{(y.Item1 ? "B" : "-")}{y.Item2:X}"))));
+            if (Debug) File.WriteAllLines($"/tmp/claude-0/turn_o_{seed}.txt", o.Events);
             var p = RunPort(s, o.Inputs, o.Timers, o.Events);
             if (Debug)
             {
@@ -332,5 +370,6 @@ public class PlayerTurnTests
             Assert.Equal(o.RandomReads, p.RandomReads);
         }
         File.WriteAllLines("/tmp/claude-0/turn_coverage.txt", Coverage.Select(kv => $"{kv.Key}: {kv.Value}"));
+        File.WriteAllLines("/tmp/claude-0/turn_thinks.txt", Thinks);
     }
 }

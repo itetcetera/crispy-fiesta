@@ -45,7 +45,7 @@ public sealed class Turn
 
 /// <summary>playersTurn ($6628): every player's development turn, in ranking order (reversed when the
 /// store has fewer than 8 mules).</summary>
-public static class PlayerTurn
+public static partial class PlayerTurn
 {
     // Frames of drawing the original spends between its waits (measured; see the turn tests).
     const int TitleDrawFrames = 1;
@@ -114,6 +114,7 @@ public static class PlayerTurn
             t.Flash = 12; v.Timers[0] = 12; t.Flashes = 6; v.Timers[3] = 0xFF;
             yield return WaitStart(game, t, cpu);
             game.Trace?.Invoke("pressed");
+            v.Handler = null;
             v.Sound = cp;
             t.Ctrl = ctrl;
             t.X = 0x7C; t.Y = 0x58;
@@ -134,9 +135,17 @@ public static class PlayerTurn
                 yield return game.WaitJiffyLevel();
             }
             t.Time += 10;
-            game.Trace?.Invoke("food");
-            if (cpu) throw new NotImplementedException("playerTurnAi");
-            yield return Human(game, t);
+            if (cpu)
+            {
+                yield return PlayerTurnAi(game, t);
+                if ((t.Time & 0x80) != 0) yield return TimeOut(game, t, cpu: true);
+                else yield return Gambling(game, t);
+            }
+            else
+            {
+                game.Trace?.Invoke("food");
+                yield return Human(game, t);
+            }
             game.Trace?.Invoke("end");
             game.Emit(new TurnEndedEvent(cp));
             order += step;
@@ -152,6 +161,7 @@ public static class PlayerTurn
         MoveWampus(game, t);
         var r = PlayerEvents.Run(g, game.Rng, g.CurrentPlayer, ref t.Outfit);
         if (r == null) yield break;
+        game.Vbi.Handler = null;
         game.Emit(new PlayerEventShownEvent(r));
         // soundPlayerEvent ($897C): a falling tune for bad news, a rising one for good.
         if (PlayerEvents.Quality[r.Event] < 0)
@@ -161,6 +171,15 @@ public static class PlayerTurn
         // addMessageEnd ($810F): the text scrolls (handler $0E).
         t.Running = false;
         t.EventShown++;
+        byte end = (byte)(21 + PlayerEvents.Text(r).Length);
+        byte pos = 0, fine = 0;
+        game.Vbi.Handler = () =>
+        {
+            // v15 ($80B7): one character every 8 frames; each pass of the end marker counts.
+            if (fine != 0) { fine--; return; }
+            if (++pos == end) { t.EventShown++; pos = 0; }
+            fine = 7;
+        };
     }
 
     /// <summary>$66F0: the player's colour flashes until the button is pressed. A CPU's turn starts
@@ -500,6 +519,8 @@ public static class PlayerTurn
         if (won > 255) won = 250;
         g.PlayersCash[g.CurrentPlayer] += (ushort)won;
         game.Emit(new GamblingEvent(g.CurrentPlayer, won));
+        // After a CPU's working out the message drawing can run past the vertical blank.
+        if (t.Map != 0 && game.Race?.Invoke("gamble late") == true) yield return null;
         yield return PubAnimation(game);
         yield return game.WaitJiffy(0x78);
         yield return EndOfTurn(game, t);
@@ -513,11 +534,13 @@ public static class PlayerTurn
     }
 
     /// <summary>TimeHasRunOut ($6C71).</summary>
-    static IEnumerable TimeOut(Game game, Turn t)
+    static IEnumerable TimeOut(Game game, Turn t, bool cpu = false)
     {
         t.Toggle = 0;
         game.Trace?.Invoke("timeout");
         ShowStatic(game, 10);
+        // After a CPU's working out the message drawing can run past the vertical blank.
+        if (cpu && game.Race?.Invoke($"time late {(byte)(t.Time - 1)}") == true) yield return null;
         t.Time--;
         yield return game.Beeps(2);
         yield return game.WaitJiffy(0xC8);
@@ -558,7 +581,10 @@ public static class PlayerTurn
         bool acted = false;
         while (true)
         {
-            if (t.Time == 0) { result.Result = Outcome.TimeOut; yield break; }
+            // When the time runs out on the blank the button is pressed, the busy loop can be past
+            // its time check and take the button first.
+            if (t.Time == 0 && !(v.Timers[2] == 0 && v.Button[t.Ctrl] == 0 && game.Race?.Invoke("button first") == true))
+            { result.Result = Outcome.TimeOut; yield break; }
             if (v.Timers[0] == 0) { game.Emit(new TurnMessageEvent(0, "")); v.Timers[0]--; }
             if (v.Timers[2] == 0 && v.Button[t.Ctrl] == 0)
             {

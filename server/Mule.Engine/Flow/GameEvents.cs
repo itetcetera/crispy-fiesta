@@ -50,6 +50,8 @@ public sealed record MuleRanAwayEvent(int Player) : GameEvent;
 public sealed record PlotChangedEvent(int Plot, int Exp) : GameEvent;
 public sealed record AssayEvent(int Plot, int Level) : GameEvent;
 public sealed record GamblingEvent(int Player, int Won) : GameEvent;
+/// <summary>A CPU player's cursor on the plot it just outfitted or assayed.</summary>
+public sealed record CpuActionEvent(int Player, int Plot, bool Assay) : GameEvent;
 
 /// <summary>The wampus shows on (or leaves) its mountain at x, y.</summary>
 public sealed record WampusEvent(bool Shown, byte X, byte Y) : GameEvent;

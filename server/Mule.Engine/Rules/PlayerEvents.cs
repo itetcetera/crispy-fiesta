@@ -136,4 +136,45 @@ public static class PlayerEvents
         else g.PlayersCash[player] = (ushort)(g.PlayersCash[player] + amount);
         return Happened(g, x, amount, each: perMule ? unit : 0);
     }
+
+    /// <summary>The event texts (EVENTS_PLAYER_TEXT_ADDR $8308, from the snapshot): the amounts go
+    /// between the parts, the unit amount first for the per-mule events.</summary>
+    static readonly string[][] Texts =
+    {
+        new[] { "YOU JUST RECEIVED A PACKAGE FROM YOUR HOME-WORLD RELATIVES CONTAINING 3 FOOD AND 2 ENERGY UNITS." },
+        new[] { "A WANDERING SPACE TRAVELER REPAID YOUR HOSPITALITY BY LEAVING TWO BARS OF SMITHORE." },
+        new[] { "MISCHIEVOUS GLAC-ELVES BROKE INTO YOUR STORAGE SHED AND STOLE HALF YOUR FOOD." },
+        new[] { "YOUR MULE WAS JUDGED \"BEST BUILT\" AT THE COLONY FAIR.  YOU WON $", "." },
+        new[] { "ONE OF YOUR MULES LOST A BOLT.  REPAIRS COST YOU $", "." },
+        new[] { "YOUR MULE WON THE COLONY TAP-DANCING CONTEST.  YOU COLLECTED $", "." },
+        new[] { "YOUR MINING MULES HAVE DETERIORATED FROM HEAVY USE AND COST $", " EACH TO REPAIR.  THE TOTAL COST IS $", "." },
+        new[] { "THE SOLAR COLLECTORS ON YOUR ENERGY MULES ARE DIRTY.  CLEANING COST YOU $", " EACH FOR A TOTAL OF $", "." },
+        new[] { "THE COLONY COUNCIL FOR AGRICULTURE AWARDED YOU $", " FOR EACH FOOD PLOT YOU HAVE DEVELOPED.  THE TOTAL GRANT IS $", "." },
+        new[] { "THE COLONY AWARDED YOU $", " FOR STOPPING THE WART WORM INFESTATION." },
+        new[] { "THE MUSEUM BOUGHT YOUR ANTIQUE PERSONAL COMPUTER FOR $", "." },
+        new[] { "YOU WON THE COLONY SWAMP EEL EATING CONTEST AND COLLECTED $", ". (YUCK!)" },
+        new[] { "A CHARITY FROM YOUR HOME-WORLD TOOK PITY ON YOU AND SENT $", "." },
+        new[] { "YOUR OFFWORLD INVESTMENTS IN ARTIFICIAL DUMBNESS PAID $", " IN DIVIDENDS." },
+        new[] { "A DISTANT RELATIVE DIED AND LEFT YOU A VAST FORTUNE.  BUT AFTER TAXES YOU ONLY GOT $", "." },
+        new[] { "YOU FOUND A DEAD MOOSE RAT AND SOLD THE HIDE FOR $", "." },
+        new[] { "YOUR SPACE GYPSY INLAWS MADE A MESS OF THE TOWN.  IT COST YOU $", " TO CLEAN IT UP." },
+        new[] { "FLYING CAT-BUGS ATE THE ROOF OFF YOUR HOUSE.  REPAIRS COST $", "." },
+        new[] { "YOU LOST $", " BETTING ON THE TWO-LEGGED KAZINGA RACES." },
+        new[] { "YOUR CHILD WAS BITTEN BY A BAT LIZARD AND THE HOSPITAL BILL COST YOU $", "." },
+        new[] { "YOU LOST A PLOT OF LAND BECAUSE THE CLAIM WAS NOT RECORDED." },
+        new[] { "YOU RECEIVED AN EXTRA PLOT OF LAND TO ENCOURAGE COLONY DEVELOPMENT." },
+    };
+
+    /// <summary>The scrolling text the turn shows (addMessageStart $80EA to addMessageEnd $810F).</summary>
+    public static string Text(PlayerEventResult r)
+    {
+        var t = Texts[r.Event];
+        string body = t.Length switch
+        {
+            1 => t[0],
+            2 => t[0] + r.Amount + t[1],
+            _ => t[0] + r.Each + t[1] + r.Amount + t[2],
+        };
+        return "  ***  " + body + "  ***  ";
+    }
 }

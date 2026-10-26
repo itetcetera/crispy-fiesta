@@ -67,6 +67,10 @@ public sealed class Game
     /// Unset, the port takes the way the original nearly always goes.</summary>
     public Func<string, bool>? Race;
 
+    /// <summary>For tests: the frames a CPU player's working out took in the original. Unset, the
+    /// port uses its measured estimate.</summary>
+    public Func<string, int?>? Think;
+
     /// <summary>The development turn under way, if any.</summary>
     public Mule.Engine.Rules.Turn? Turn;
 
