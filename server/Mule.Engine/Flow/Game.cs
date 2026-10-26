@@ -34,6 +34,9 @@ public sealed class Game
 
     public void Emit(GameEvent e) => Events.Add(e);
 
+    /// <summary>Diagnostics for tests: named points in the phases.</summary>
+    public Action<string>? Trace;
+
     /// <summary>waitJiffy ($1310): until the clock has moved on <paramref name="n"/> frames.</summary>
     public IEnumerable WaitJiffy(int n)
     {

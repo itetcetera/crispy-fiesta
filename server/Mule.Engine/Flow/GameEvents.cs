@@ -18,3 +18,10 @@ public sealed record AuctionStartedEvent(int Plot, int Price) : GameEvent;
 public sealed record AuctionPriceEvent(int Price) : GameEvent;
 public sealed record AuctionStateEvent(byte[] Positions, byte Leader, ushort High, byte Time) : GameEvent;
 public sealed record AuctionEndedEvent(int Winner, int Price) : GameEvent;
+
+// Goods auction
+public sealed record GoodsStatusEvent(int Good) : GameEvent;
+/// <summary>The status bars move from <paramref name="From"/> to <paramref name="To"/> (quarter units): 1 usage, 2 spoilage, 3 production.</summary>
+public sealed record GoodsBarsEvent(int Kind, ushort[] From, ushort[] To) : GameEvent;
+/// <summary>New requirements; <paramref name="Kinds"/>: 0 surplus, 12 shortage per player.</summary>
+public sealed record GoodsRequirementEvent(byte[] Required, byte[] Kinds) : GameEvent;

@@ -66,6 +66,9 @@ public sealed class GameState
     public readonly byte[] GoodsFuturNb = new byte[3];          // $B332
     public readonly byte[] GoodsFuturReq = new byte[3];         // $B335
     public readonly byte[] PlayersGoodReq = new byte[Players];  // $CC
+    public readonly byte[] PlayersGoodHeld = new byte[Players]; // $B319 units held when the goods auction began
+    public readonly byte[] PlayersGoodGap = new byte[Players];  // $B1B1 units above (or below) the requirement
+    public readonly byte[] PlayersGoodShort = new byte[Players]; // $B1AD 1 = below the requirement
     public byte FoodReq = 3;                                    // $B376
     public ushort MulePrice = 100;                              // $B2B9/$B367
     public readonly byte[] OutfitsPrice = new byte[5];          // $B2B1 (index = job)

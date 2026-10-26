@@ -13,8 +13,11 @@ public sealed class Auction
     public byte Kind;                                   // $BC: 0 goods, 5 land
     public readonly byte[] Pos = new byte[4];           // $A3 player heights (smaller = higher)
     public readonly byte[] Seller = new byte[4];        // $B1B5 0 buyer, 1 seller
-    public readonly byte[] Out = new byte[4];           // $B309 1 = cannot bid
-    public readonly byte[] Low = new byte[4];           // $B30D highest point the player can afford
+    /// <summary>$B309-$B310: <see cref="Out"/> and <see cref="Low"/>, also used as four words by the
+    /// goods status bars (their target amounts), which leave values behind for the auction.</summary>
+    public readonly byte[] B309 = new byte[8];
+    public ByteView Out => new(B309, 0);                // $B309 1 = cannot bid
+    public ByteView Low => new(B309, 4);                // $B30D highest point the player can afford
     public readonly byte[] High = new byte[4];          // $B311 start height
     public readonly byte[] Mask = new byte[4];          // $E3 stick mask (CPUs: also their stick)
     public readonly byte[] InZone = new byte[4];        // $9F
@@ -47,6 +50,22 @@ public sealed class Auction
     public byte SavedTime;                              // $B21D
     public byte Flag43;                                 // $43
     public byte PriceChanged;                           // $80 after the seller/price logic
+
+    // Goods
+    public byte Good;                                   // $91
+    public byte Speed;                                  // $9A05 frames between status bar steps
+    public byte StepTimer;                              // $AF
+    public byte StepReady;                              // $D9
+    public byte Flash;                                  // $DA status: surplus and shortage shown
+}
+
+/// <summary>A view of part of a byte array, for original variables that share memory.</summary>
+public readonly struct ByteView
+{
+    readonly byte[] _a;
+    readonly int _o;
+    public ByteView(byte[] a, int offset) { _a = a; _o = offset; }
+    public ref byte this[int i] => ref _a[_o + i];
 }
 
 /// <summary>Land auctions ($A2DA-$A893, $A6DA, $A727) and the CPU land bidding ($AD03-$AEFF).</summary>
