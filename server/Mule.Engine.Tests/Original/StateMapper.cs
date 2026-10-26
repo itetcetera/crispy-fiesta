@@ -71,6 +71,8 @@ public static class StateMapper
         new("levelAuctionTimeWait", 0xB327, g => g.LevelAuctionTimeWait, (g, v) => g.LevelAuctionTimeWait = v),
         new("auctionTimeReload", 0x9CEF, g => g.AuctionTimeReload, (g, v) => g.AuctionTimeReload = v),
         new("goodsTimeReload", 0x9B8B, g => g.GoodsTimeReload, (g, v) => g.GoodsTimeReload = v),
+        new("oldRiverStoreX", 0xB249, g => g.OldRiverStoreX, (g, v) => g.OldRiverStoreX = v),
+        new("oldMountainX", 0xB24A, g => g.OldMountainX, (g, v) => g.OldMountainX = v),
         new("nbRounds", 0xB36F, g => g.NbRounds, (g, v) => g.NbRounds = v),
         new("cursorWait", 0xB36D, g => g.CursorWait, (g, v) => g.CursorWait = v),
         new("maxIndexCpu", 0x00D2, g => g.MaxIndexCpu, (g, v) => g.MaxIndexCpu = v),

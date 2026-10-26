@@ -49,6 +49,7 @@ public sealed class GameState
     public readonly byte[] PlotsKnownCrystite = new byte[Plots];// $B45A CPU crystite knowledge (128 = unknown)
     public readonly byte[] MountainsX = new byte[20];           // $B221 x of each mountain quarter-row
     public readonly byte[] RiverStoreX = new byte[20];          // $B235 river/store x per quarter-row
+    public byte OldRiverStoreX, OldMountainX;                   // $B249, $B24A: the first quarter-row's, while the town screen uses it
 
     // Per player, per job / good
     public readonly byte[] GoodsShortage = new byte[3];         // $B19D food, energy, smithore shortage flags

@@ -22,6 +22,14 @@ public sealed class Game
 
     public void Start(IEnumerable main) => _main = new Coroutine(main);
 
+    /// <summary>Starts <paramref name="main"/> and runs it up to its first wait now, before the next
+    /// frame's vertical blank, as a routine called from the original's main program does.</summary>
+    public void StartNow(IEnumerable main)
+    {
+        _main = new Coroutine(main);
+        _main.Step();
+    }
+
     public bool Finished => _main == null || _main.Done;
 
     /// <summary>Runs one frame: the vertical blank with this frame's controls, then the main program.</summary>
@@ -40,6 +48,9 @@ public sealed class Game
     /// <summary>For tests: how a cycle race of the original went (see docs/PLAN.md, timing effects).
     /// Unset, the port takes the way the original nearly always goes.</summary>
     public Func<string, bool>? Race;
+
+    /// <summary>The development turn under way, if any.</summary>
+    public Mule.Engine.Rules.Turn? Turn;
 
     /// <summary>waitJiffy ($1310): until the clock has moved on <paramref name="n"/> frames.</summary>
     public IEnumerable WaitJiffy(int n)

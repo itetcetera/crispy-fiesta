@@ -83,6 +83,8 @@ public static class Setup
         for (int y = 241; y >= 10; y -= 2) rng.NextByte();
 
         GenerateRiverStoreX(g, rng);
+        g.OldRiverStoreX = g.RiverStoreX[0];
+        g.OldMountainX = g.MountainsX[0];
 
         // Base output table ($44BC).
         for (int x = 44; x >= 0; x--)

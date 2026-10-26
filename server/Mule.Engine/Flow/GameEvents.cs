@@ -35,3 +35,18 @@ public sealed record GoodsAuctionStateEvent(byte[] Positions, byte Buyer, byte S
 public sealed record GoodsTradedEvent(byte Buyer, byte Seller, ushort Price) : GameEvent;
 /// <summary>The goods auction is over; the good's new price.</summary>
 public sealed record GoodsAuctionEndedEvent(int Good, ushort Price) : GameEvent;
+
+// Development turns
+public sealed record TurnStartedEvent(int Player) : GameEvent;
+public sealed record TurnEndedEvent(int Player) : GameEvent;
+public sealed record PlayerEventShownEvent(Mule.Engine.Rules.PlayerEventResult Result) : GameEvent;
+/// <summary>A turn message by its number in the original's table ($3B6F), or other text; code 0 and no text clears it.</summary>
+public sealed record TurnMessageEvent(int Code, string Text) : GameEvent;
+public sealed record TurnScreenEvent(bool Map) : GameEvent;
+public sealed record MuleBoughtEvent(int Player) : GameEvent;
+public sealed record MuleSoldBackEvent(int Player) : GameEvent;
+public sealed record MuleOutfittedEvent(int Player, int Outfit) : GameEvent;
+public sealed record MuleRanAwayEvent(int Player) : GameEvent;
+public sealed record PlotChangedEvent(int Plot, int Exp) : GameEvent;
+public sealed record AssayEvent(int Plot, int Level) : GameEvent;
+public sealed record GamblingEvent(int Player, int Won) : GameEvent;

@@ -14,15 +14,23 @@ public static class PlayerEvents
     /// <summary>Runs the event roll for <paramref name="player"/>. Returns null when nothing happens.</summary>
     public static PlayerEventResult? Run(GameState g, IRandomSource rng, int player)
     {
+        byte bc = 0;
+        return Run(g, rng, player, ref bc);
+    }
+
+    /// <summary>Also tracks byte_BC, which the event search leaves behind (the turn reuses the byte).</summary>
+    public static PlayerEventResult? Run(GameState g, IRandomSource rng, int player, ref byte bc)
+    {
         byte a = rng.Below(80);
         if (a >= 22) return null;
+        bc = a;
         int x = a;
         int count = 20;
         while (true)
         {
             if (g.TurnEventsHappened[x] == 0)
             {
-                var r = TryEvent(g, rng, player, x, out bool tryAnother);
+                var r = TryEvent(g, rng, player, x, ref bc, out bool tryAnother);
                 if (!tryAnother) return r;
             }
             x--;
@@ -31,7 +39,7 @@ public static class PlayerEvents
         }
     }
 
-    static PlayerEventResult? TryEvent(GameState g, IRandomSource rng, int player, int x, out bool tryAnother)
+    static PlayerEventResult? TryEvent(GameState g, IRandomSource rng, int player, int x, ref byte bc, out bool tryAnother)
     {
         tryAnother = true;
         if (Quality[x] < 0)
@@ -41,6 +49,7 @@ public static class PlayerEvents
         else if (player == g.OrdersPlayer[0]) return null;
 
         tryAnother = false;
+        bc = (byte)x;
         int food = Good.Food * 4 + player;
         // A non-leader with no food gets the care package instead of any other event ($81A4).
         if (x == 0 || (player != g.OrdersPlayer[0] && g.GoodsPlayersNb[food] == 0))
@@ -48,6 +57,7 @@ public static class PlayerEvents
             g.GoodsPlayersNb[food] += 3;
             g.GoodsPlayersNb[Good.Energy * 4 + player] += 2;
             g.TurnEventsHappened[0]++;
+            bc = 0;
             return new PlayerEventResult(0, 0);
         }
         switch (x)
