@@ -12,3 +12,9 @@ public sealed record SoundEvent(int Sound) : GameEvent;
 public sealed record GrantCursorEvent(int Plot) : GameEvent;
 public sealed record GrantCursorHiddenEvent : GameEvent;
 public sealed record PlotGrantedEvent(int Plot, int Player) : GameEvent;
+
+// Land auction
+public sealed record AuctionStartedEvent(int Plot, int Price) : GameEvent;
+public sealed record AuctionPriceEvent(int Price) : GameEvent;
+public sealed record AuctionStateEvent(byte[] Positions, byte Leader, ushort High, byte Time) : GameEvent;
+public sealed record AuctionEndedEvent(int Winner, int Price) : GameEvent;

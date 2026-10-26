@@ -66,8 +66,10 @@ public static class Ai
         CalcGoodsQuality(g, rng, 3);
         g.AiMode = 2;
         Span<byte> saved = stackalloc byte[3];
-        for (int player = 3; player >= 0; player--)
+        // The original loops on currentPlayer, which ends at $FF.
+        for (g.CurrentPlayer = 3; (g.CurrentPlayer & 0x80) == 0; g.CurrentPlayer--)
         {
+            int player = g.CurrentPlayer;
             g.GoodsQuality.AsSpan(0, 3).CopyTo(saved);
             if (g.NumRound == 1)
             {

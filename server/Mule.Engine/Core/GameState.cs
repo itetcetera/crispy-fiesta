@@ -75,6 +75,13 @@ public sealed class GameState
     public readonly ushort[] GoodsPriceTemp = new ushort[3];    // $B206 saved food, energy, smithore prices
     public readonly byte[] PlayersPlotsQuality = new byte[4 * Plots]; // $B379 [player*45+plot]
 
+    // Land sales
+    public byte CurrentPlayer;                                  // $AC (also the auction winner, $FF = none)
+    public readonly ushort[] LastPriceStart = new ushort[6];    // $B2E3 auction scale base per good; [5] = land ($B2ED)
+    public ushort LastBidStartLa;                               // $B2FB next land auction's opening bid (0 = first)
+    public readonly byte[] LandsToSell = new byte[8];           // $B2C2 plots put up for sale by players
+    public byte NbLandsToSellByPlayers;                         // $CA
+
     // Round flow
     public readonly byte[] OrdersPlayer = { 0, 1, 2, 3 };       // $B328 ranking, 1st first
     public readonly byte[] RoundEventsProb = new byte[8];       // $B342 cards left per round event
@@ -82,6 +89,7 @@ public sealed class GameState
     public readonly byte[] PlayersTurnTimeWait = new byte[Players]; // $B370
     public byte CursorWait = 3;                                 // $B36D
     public byte LevelAuctionTimeWait = 25;                      // $B327
+    public byte AuctionTimeReload = 0x10;                       // $9CEF auction time bar reload (operand in the code, kept between auctions)
     public byte DoMissingEnergyMalus;                           // $B377 (0 = apply)
     public byte AiMode;                                         // $B375 (0 none, 1 turn preview, 2 land auction)
     public byte ProdMax;                                        // $94 after calcPlotsProd

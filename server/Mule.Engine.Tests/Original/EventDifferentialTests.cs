@@ -42,9 +42,9 @@ public class EventDifferentialTests
             int player = r.Next(4);
             if (r.Next(4) == 0) g.GoodsPlayersNb[player] = 0;
 
+            g.CurrentPlayer = (byte)player;
             var orig = Patched();
             StateMapper.ToRam(g, orig.Cpu);
-            orig[0xAC] = (byte)player; // currentPlayer
             var rngO = new ScriptedRandom(seed);
             // Force the 27.5% roll to hit most of the time so events are exercised.
             orig.Random = rngO.NextByte;

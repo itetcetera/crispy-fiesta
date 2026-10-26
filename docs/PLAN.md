@@ -48,6 +48,15 @@ screen geometry, message text).
    example the CPUs' thinking before the land grant) are modelled from measurements on the
    original and match within a few frames. Gameplay timing (cursor speed, timers, who gets a
    plot for a given press) matches exactly.
+6. Two timing effects of the original are left out because they depend on the exact 6502 cycle
+   at which a vertical blank lands, not on the rules:
+   - The "press all buttons" wait (`loc_30A2`) can miss a timer tick when the blank falls
+     between its timer check and its timer reset, so the original sometimes waits one more
+     4-jiffy timer period before an auction. The port always takes the first tick.
+   - In an auction, the main loop's drawing now and then ends just after a blank, so the
+     original finishes an auction step one jiffy late. Steps (prices, heights, leader, time
+     bar) are the same; the land auction tests allow this one-jiffy lag and count it (about
+     0.3% of steps).
 
 ## Layout
 

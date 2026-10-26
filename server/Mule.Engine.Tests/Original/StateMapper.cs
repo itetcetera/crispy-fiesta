@@ -36,6 +36,7 @@ public static class StateMapper
         new("playersTurnTimeWait", 0xB370, g => g.PlayersTurnTimeWait),
         new("outfitsPriceL", 0xB2B1, g => g.OutfitsPrice),
         new("turnEventsHappened", 0xB34A, g => g.TurnEventsHappened),
+        new("landsToSell", 0xB2C2, g => g.LandsToSell),
         new("goodsShortage", 0xB19D, g => g.GoodsShortage),
         new("goodsQuality", 0xB20C, g => g.GoodsQuality),
         new("playersPlotsQuality", 0xB379, g => g.PlayersPlotsQuality),
@@ -47,6 +48,7 @@ public static class StateMapper
         new("goodsPrice", 0xB2F1, g => g.GoodsPrice),
         new("goodsPriceLimit", 0x3277, g => g.GoodsPriceLimit),
         new("goodsPriceTemp", 0xB206, g => g.GoodsPriceTemp),
+        new("lastPriceStart", 0xB2E3, g => g.LastPriceStart),
     };
 
     static readonly ScalarField[] Scalars =
@@ -59,6 +61,13 @@ public static class StateMapper
         new("mulePriceL", 0xB2B9, g => (byte)g.MulePrice, (g, v) => g.MulePrice = (ushort)((g.MulePrice & 0xFF00) | v)),
         new("mulePriceH", 0xB367, g => (byte)(g.MulePrice >> 8), (g, v) => g.MulePrice = (ushort)((g.MulePrice & 0xFF) | (v << 8))),
         new("prodMax", 0x0094, g => g.ProdMax, (g, v) => g.ProdMax = v),
+        new("currentPlayer", 0x00AC, g => g.CurrentPlayer, (g, v) => g.CurrentPlayer = v),
+        new("nbLandsToSellByPlayers", 0x00CA, g => g.NbLandsToSellByPlayers, (g, v) => g.NbLandsToSellByPlayers = v),
+        new("lastBidStartLaL", 0xB2FB, g => (byte)g.LastBidStartLa, (g, v) => g.LastBidStartLa = (ushort)((g.LastBidStartLa & 0xFF00) | v)),
+        new("lastBidStartLaH", 0xB2FC, g => (byte)(g.LastBidStartLa >> 8), (g, v) => g.LastBidStartLa = (ushort)((g.LastBidStartLa & 0xFF) | (v << 8))),
+        new("levelAuctionTimeWait", 0xB327, g => g.LevelAuctionTimeWait, (g, v) => g.LevelAuctionTimeWait = v),
+        new("auctionTimeReload", 0x9CEF, g => g.AuctionTimeReload, (g, v) => g.AuctionTimeReload = v),
+        new("nbRounds", 0xB36F, g => g.NbRounds, (g, v) => g.NbRounds = v),
         new("cursorWait", 0xB36D, g => g.CursorWait, (g, v) => g.CursorWait = v),
         new("maxIndexCpu", 0x00D2, g => g.MaxIndexCpu, (g, v) => g.MaxIndexCpu = v),
     };
