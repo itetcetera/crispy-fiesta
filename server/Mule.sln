@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mule.Server", "Mule.Server\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mule.Engine.Tests", "Mule.Engine.Tests\Mule.Engine.Tests.csproj", "{5559D020-B8FC-4489-B9EE-94B9D8B2ADD7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mule.Atari", "Mule.Atari\Mule.Atari.csproj", "{44DEC3A9-4B61-4C03-A0CE-DAC98473E38B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{5559D020-B8FC-4489-B9EE-94B9D8B2ADD7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5559D020-B8FC-4489-B9EE-94B9D8B2ADD7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5559D020-B8FC-4489-B9EE-94B9D8B2ADD7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44DEC3A9-4B61-4C03-A0CE-DAC98473E38B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44DEC3A9-4B61-4C03-A0CE-DAC98473E38B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44DEC3A9-4B61-4C03-A0CE-DAC98473E38B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44DEC3A9-4B61-4C03-A0CE-DAC98473E38B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

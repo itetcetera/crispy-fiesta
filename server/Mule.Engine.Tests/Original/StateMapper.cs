@@ -57,27 +57,30 @@ public static class StateMapper
         new("prodMax", 0x0094, g => g.ProdMax, (g, v) => g.ProdMax = v),
     };
 
-    public static void ToRam(GameState g, Cpu6502 cpu)
+    public static void ToRam(GameState g, Cpu6502 cpu) => ToRam(g, cpu.Mem);
+    public static GameState FromRam(Cpu6502 cpu) => FromRam(cpu.Mem);
+
+    public static void ToRam(GameState g, byte[] mem)
     {
-        foreach (var f in Bytes) f.Get(g).CopyTo(cpu.Mem, f.Addr);
+        foreach (var f in Bytes) f.Get(g).CopyTo(mem, f.Addr);
         foreach (var f in Words)
         {
             var a = f.Get(g);
-            for (int i = 0; i < a.Length; i++) { cpu.Mem[f.Addr + 2 * i] = (byte)a[i]; cpu.Mem[f.Addr + 2 * i + 1] = (byte)(a[i] >> 8); }
+            for (int i = 0; i < a.Length; i++) { mem[f.Addr + 2 * i] = (byte)a[i]; mem[f.Addr + 2 * i + 1] = (byte)(a[i] >> 8); }
         }
-        foreach (var f in Scalars) cpu.Mem[f.Addr] = f.Get(g);
+        foreach (var f in Scalars) mem[f.Addr] = f.Get(g);
     }
 
-    public static GameState FromRam(Cpu6502 cpu)
+    public static GameState FromRam(byte[] mem)
     {
         var g = new GameState();
-        foreach (var f in Bytes) Array.Copy(cpu.Mem, f.Addr, f.Get(g), 0, f.Get(g).Length);
+        foreach (var f in Bytes) Array.Copy(mem, f.Addr, f.Get(g), 0, f.Get(g).Length);
         foreach (var f in Words)
         {
             var a = f.Get(g);
-            for (int i = 0; i < a.Length; i++) a[i] = (ushort)(cpu.Mem[f.Addr + 2 * i] | (cpu.Mem[f.Addr + 2 * i + 1] << 8));
+            for (int i = 0; i < a.Length; i++) a[i] = (ushort)(mem[f.Addr + 2 * i] | (mem[f.Addr + 2 * i + 1] << 8));
         }
-        foreach (var f in Scalars) f.Set(g, cpu.Mem[f.Addr]);
+        foreach (var f in Scalars) f.Set(g, mem[f.Addr]);
         return g;
     }
 

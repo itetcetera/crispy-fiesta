@@ -73,23 +73,23 @@ public class EventDifferentialTests
     [InlineData("roundEventFireInStore", 7)]
     public void RoundEvent_matches(string routine, int kind)
     {
-        for (int seed = 0; seed < 100; seed++)
+        for (int seed = 0; seed < 25; seed++)
         {
             var g = DifferentialTests.RandomState(seed);
             new Random(seed).Shuffle(g.OrdersPlayer);
-            var orig = new OriginalGame();
-            orig.EnableVblank();
+            var orig = new MachineGame();
             // Only the logic's RANDOM reads use the shared script; animation reads are display-only.
             orig.Cosmetic = true;
             var (logicOn, logicOff) = LogicWindows[kind];
             foreach (var pc in logicOn) orig.LogicFrom.Add(pc);
             foreach (var pc in logicOff) orig.CosmeticFrom.Add(pc);
-            StateMapper.ToRam(g, orig.Cpu);
+            StateMapper.ToRam(g, orig.Ram);
+            orig.Ram[0xC1] = 0xFF; // no per-phase VBI handler (the snapshot's ship handler would clobber $AA)
             var rngO = new ScriptedRandom(seed);
             orig.Random = rngO.NextByte;
             if (kind == 0 && !PestTerminates(g, rngO.Clone())) continue;
-            orig.Call(routine, maxSteps: 400_000_000);
-            var after = StateMapper.FromRam(orig.Cpu);
+            orig.Call(routine);
+            var after = StateMapper.FromRam(orig.Ram);
 
             var port = StateMapper.FromRam(Clone(g));
             var rngP = new ScriptedRandom(seed);

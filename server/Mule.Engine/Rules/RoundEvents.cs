@@ -67,6 +67,7 @@ public static class RoundEvents
     /// <summary>$76F0 (tournament): all players' crystite and all crystite production are lost.</summary>
     public static RoundEventResult PirateShip(GameState g)
     {
+        g.AiMode = 1; // $768B reuses $B375 as the ship-type flag for the animation (1 = pirates)
         byte good = Good.Crystite;
         if (g.Level != 2) { good = Good.Smithore; g.GoodsStoreNb[Good.Smithore] = 0; }
         for (int p = 0; p < 4; p++) g.GoodsPlayersNb[good * 4 + p] = 0;
