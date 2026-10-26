@@ -37,7 +37,7 @@ public class PlayerTurnTests
     {
         readonly Random _r;
         int _target = -1, _wait, _pressAt = -1, _tx = -1, _ty, _wander, _leave;
-        bool _down, _entering;
+        bool _down, _entering, _hunt;
         int _lastY = -1;
         byte _wanderStick;
         public Agent(int seed) => _r = new Random(seed);
@@ -99,6 +99,19 @@ public class PlayerTurnTests
         (bool, byte) OnMap(byte[] ram, byte x, byte y)
         {
             _leave = 0; _target = -1; _entering = false;
+            // Empty-handed, it sometimes hunts the wampus while it shows.
+            if (ram[0xBC] == 0 && ram[0xE0] == 0 && ram[0xB36A] != 0 && (_hunt || _r.Next(40) == 0))
+            {
+                _hunt = true;
+                int hx = ram[0xB368] - x, hy = ram[0xB369] - 4 - y;
+                if (hx == 0 && hy == 0) return (_r.Next(2) == 0, 15);
+                byte h = 15;
+                if (hx > 0) h &= 0x07; else if (hx < 0) h &= 0x0B;
+                if (hy > 0) h &= 0x0D; else if (hy < 0) h &= 0x0E;
+                return (false, h);
+            }
+            if (_hunt && ram[0xB36A] == 0 && _r.Next(60) != 0) return (false, 15);
+            _hunt = false;
             if (_wander > 0) { _wander--; return (false, _wanderStick); }
             if (_r.Next(150) == 0) { _wander = _r.Next(20, 150); _wanderStick = Directions[_r.Next(Directions.Length)]; return (false, _wanderStick); }
             if (_tx < 0)
@@ -131,6 +144,9 @@ public class PlayerTurnTests
     }
 
     sealed record Run(List<string> Events, GameState End, List<(bool, byte)[]> Inputs, int RandomReads, byte[] Timers);
+
+    static readonly SortedDictionary<string, int> Coverage = new();
+    static void Covered(string what) => Coverage[what] = Coverage.GetValueOrDefault(what) + 1;
 
     static Run RunOriginal(Scenario s)
     {
@@ -192,7 +208,9 @@ public class PlayerTurnTests
                 case 0x6A82: events.Add($"{vbi} gamble"); break;
                 case 0x6C71: events.Add($"{vbi} timeout"); break;
                 case 0x6AF2: events.Add($"{vbi} end"); break;
-                case 0x4A32: events.Add($"{vbi} msg {c.X}"); break;
+                case 0x4A32: events.Add($"{vbi} msg {c.X}"); Covered($"msg {c.X}"); break;
+                case 0x8C1C: Covered("wampus caught"); break;
+                case 0x6C92: if (r[0xE0] != 0 && r[0xB0] != 0) Covered("mule escapes"); break;
             }
         };
         try { m.M.CallRoutine(OriginalGame.Sym("playersTurn"), 60_000); }
@@ -313,5 +331,6 @@ public class PlayerTurnTests
             Assert.True(diff.Count == 0, $"seed {seed}:\n" + string.Join("\n", diff.Take(20)));
             Assert.Equal(o.RandomReads, p.RandomReads);
         }
+        File.WriteAllLines("/tmp/claude-0/turn_coverage.txt", Coverage.Select(kv => $"{kv.Key}: {kv.Value}"));
     }
 }
