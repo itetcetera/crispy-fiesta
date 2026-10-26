@@ -14,19 +14,28 @@ public static class GoodsAuction
     /// produces any and the store has none.</summary>
     public static IEnumerable Run(Game game, byte good)
     {
+        var a = new Auction { Kind = 0, Good = good };
+        yield return Prepare(game, a);
+        if (a.CalledOff) yield break;
+        game.Vbi.Handler = null;
+        yield return BuySell(game, a);
+    }
+
+    /// <summary>Everything before the trading: the status screen and the buy/sell choice. The auction
+    /// is called off when there is nothing to trade.</summary>
+    public static IEnumerable Prepare(Game game, Auction a)
+    {
         var g = game.State;
+        int good = a.Good;
         if (good >= 2)
         {
             bool any = g.GoodsStoreNb[good] != 0;
             for (int p = 3; p >= 0 && !any; p--)
                 any = (g.GoodsPlayersNb[good * 4 + p] | g.GoodsPlayersProd[good * 4 + p]) != 0;
-            if (!any) yield break;
+            if (!any) { a.CalledOff = true; yield break; }
         }
-        var a = new Auction { Kind = 0, Good = good };
         yield return Status(game, a);
         yield return SelectBuySell(game, a);
-        game.Vbi.Handler = null;
-        yield return BuySell(game, a);
     }
 
     // Vertical blanks the drawing of the status screen runs past (measured on the scanline Atari).
@@ -133,6 +142,8 @@ public static class GoodsAuction
             }
             else
                 for (int p = 3; p >= 0; p--) g.PlayersGoodReq[p] = (byte)(Production.CalcEnergyReq(g, p) + 1);
+            // The requirement line's height, kept in the same bytes as the CPUs' sides.
+            for (int p = 3; p >= 0; p--) a.Role[p] = (byte)(g.PlayersGoodReq[p] << 2);
             bool shortage = false;
             for (int p = 3; p >= 0; p--) a.InZone[p] = g.GoodsPlayersNb[good * 4 + p];
             for (int p = 3; p >= 0; p--)
@@ -291,6 +302,205 @@ public static class GoodsAuction
     static ushort W(byte[] t, int i) => (ushort)(t[i] | (t[i + 1] << 8));
     static void SetW(byte[] t, int i, ushort v) { t[i] = (byte)v; t[i + 1] = (byte)(v >> 8); }
 
-    static IEnumerable SelectBuySell(Game game, Auction a) => throw new NotImplementedException();
+    // Vertical blanks the drawing of the buy/sell screen runs past (measured on the scanline Atari).
+    const int SelectDrawFrames = 2;
+
+    /// <summary>animSelectBuySell ($63F5): with nothing to trade the auction is called off. Otherwise
+    /// players start as sellers when they hold units (food and energy: more than they need), CPUs
+    /// decide what to trade, and everyone has 31 time-bar steps to push up (sell) or down (buy).</summary>
+    public static IEnumerable SelectBuySell(Game game, Auction a)
+    {
+        var g = game.State;
+        var v = game.Vbi;
+        int good = a.Good;
+        v.InitButtons();
+        bool any = g.GoodsStoreNb[good] != 0;
+        for (int p = 3; p >= 0 && !any; p--) any = g.GoodsPlayersNb[good * 4 + p] != 0;
+        if (!any)
+        {
+            game.Emit(new MessageEvent("NO COMMODITY"));
+            yield return game.Beeps(4);
+            yield return game.WaitJiffyLevel();
+            a.CalledOff = true;
+            yield break;
+        }
+        for (int x = 3; x >= 0; x--)
+        {
+            v.Timers[x] = 4;
+            byte held = g.GoodsPlayersNb[good * 4 + x];
+            bool seller = held != 0 && (good >= 2 || held > g.PlayersGoodReq[x]);
+            a.Seller[x] = a.Role[x] = seller ? (byte)1 : (byte)0;
+            a.Pos[x] = seller ? (byte)0x52 : (byte)0xAE;
+            if (seller) game.Play(0);
+        }
+        if ((g.MaxIndexCpu & 0x80) == 0) Ai1(g, a);
+        LandAuction.Ai2(g, a);
+        if ((g.MaxIndexCpu & 0x80) == 0) Ai4(g, game.Rng, a);
+        for (int x = 3; x >= 0; x--) a.Mask[x] = 0x0F;
+        a.Time = 0x1E;
+        a.Tick = 0;
+        a.FrameDone = 0;
+        game.Emit(new GoodsSelectEvent(good, a.Seller.ToArray()));
+        yield return game.Frames(SelectDrawFrames);
+        v.Handler = () => SelectVbl(game, a);
+        game.Trace?.Invoke("select");
+        bool first = true;
+        while (true)
+        {
+            a.StepReady = 0;
+            while (a.StepReady == 0) yield return null;
+            v.SoundOnPress = 0;
+            if (first)
+            {
+                for (int x = g.MaxIndexCpu; x >= 0 && (g.MaxIndexCpu & 0x80) == 0; x--) v.Stick[x] = (byte)(a.Role[x] + 0x0D);
+                first = false;
+            }
+            if (a.Changed != 0) game.Emit(new GoodsSelectEvent(good, a.Seller.ToArray()));
+            if ((a.Time & 0x80) != 0) break;
+        }
+        v.Handler = null;
+        v.InitButtons();
+        yield return game.Beeps(1);
+        yield return game.WaitJiffy(30);
+    }
+
+    /// <summary>v02 ($9A94): the time bar steps every levelAuctionTimeWait/4 frames; a player's stick
+    /// (up sell, down buy) switches side, then not again for 7 timer ticks.</summary>
+    static void SelectVbl(Game game, Auction a)
+    {
+        var g = game.State;
+        var v = game.Vbi;
+        if (a.Tick == 0)
+        {
+            a.Tick = (byte)(g.LevelAuctionTimeWait >> 2);
+            a.Time--;
+            if ((a.Time & 0x80) != 0) { a.StepReady = 1; return; }
+        }
+        a.Changed = 0;
+        for (int x = 3; x >= 0; x--)
+        {
+            if (v.Timers[x] == 0)
+            {
+                byte s = (byte)(v.Stick[x] | 0x0C);
+                int y = s == 0x0D ? 0 : s == 0x0E ? 1 : -1;
+                if (y >= 0 && y != a.Seller[x])
+                {
+                    a.Seller[x] = (byte)y;
+                    a.Changed = 1;
+                    game.Trace?.Invoke($"switch {x} {y}");
+                    game.Play(0);
+                    a.Pos[x] = y != 0 ? (byte)0x52 : (byte)0xAE;
+                    v.Timers[x] = 7;
+                }
+            }
+            v.ButtonPushed[x] = 0;
+        }
+        if (a.FrameDone == 0) a.FrameDone++;
+        if (a.Tick != 0) a.Tick--;
+        a.StepReady = 1;
+    }
+
+    /// <summary>ai1 ($AD4B) for goods: each CPU keeps the price of a MULE plus 75; for food, also what
+    /// the energy it lacks would cost; for energy with no food left, nothing.</summary>
+    static void Ai1(GameState g, Auction a)
+    {
+        var t = g.PlotsTemp3;
+        for (int cpu = g.MaxIndexCpu; cpu >= 0; cpu--)
+        {
+            int x = 2 * cpu;
+            ushort keep = (ushort)(g.MulePrice + 75);
+            if (a.Good == Good.Food)
+            {
+                int d = g.PlayersNbExps[cpu] - g.ExpsPlayersNb[4 + cpu];
+                bool borrow = d < 0;
+                d = (byte)d - g.GoodsPlayersProd[4 + cpu] - (borrow ? 1 : 0);
+                if (d >= 0)
+                {
+                    int cost = (byte)d * (byte)g.GoodsPrice[Good.Energy];
+                    keep = (ushort)(keep + cost);
+                }
+            }
+            else if (a.Good == Good.Energy && g.GoodsPlayersNb[Good.Food * 4 + cpu] == 0) keep = 1;
+            LandAuction.SetW(t, Keep + x, keep);
+        }
+    }
+
+    const int Keep = 8, Willing = 0x11;
+
+    /// <summary>animSelectBuySellAi4 ($AA42): how many units each CPU trades (B487). Nothing in the last
+    /// round. Food and energy: the surplus or shortage; in the tournament a seller with a small surplus,
+    /// a low price and enough cash sells a random part of it. Smithore and crystite: everything when the
+    /// price reaches 50 + level (smithore) or 100 (crystite); else enough to avoid spoilage or reach 1000
+    /// in cash; with nothing to sell and a price under 46 (86), buy with what is above 800 (at most 25,
+    /// not past 50 held).</summary>
+    static void Ai4(GameState g, IRandomSource rng, Auction a)
+    {
+        int good = a.Good;
+        var t = g.PlotsTemp3;
+        if (g.NumRound >= g.NbRounds)
+        {
+            for (int x = g.MaxIndexCpu; x >= 0; x--) a.CpuUnits[x] = 0;
+            return;
+        }
+        if (good < 2)
+        {
+            for (int x = g.MaxIndexCpu; x >= 0; x--)
+            {
+                byte n = g.PlayersGoodGap[x];
+                if (a.Seller[x] != 0 && g.Level == 2 && n < (good == Good.Food ? 6 : 9) && a.PriceStart < 81)
+                {
+                    // The cash to keep is read with the player's index, not twice it.
+                    ushort keep = (ushort)(t[Keep + x] | (t[Keep + x + 1] << 8));
+                    if (keep < g.PlayersCash[x]) n = rng.Below((byte)(n + 1));
+                }
+                a.CpuUnits[x] = n;
+            }
+            return;
+        }
+        int k = good - 2;
+        for (int x = g.MaxIndexCpu; x >= 0; x--)
+        {
+            byte held = g.GoodsPlayersNb[good * 4 + x];
+            byte n;
+            if (held != 0)
+            {
+                byte limit = (byte)(MinSell[k] + (k == 0 ? g.Level : 0));
+                if ((byte)a.PriceStart >= limit) { a.CpuUnits[x] = held; continue; }
+                byte spoil = held >= 51 ? (byte)(held - 50) : (byte)0;
+                byte toCash = 0;
+                int missing = 1000 - g.PlayersCash[x];
+                if (missing >= 0)
+                {
+                    ushort q = Div16((ushort)missing, (byte)a.PriceStart);
+                    toCash = q >= 256 ? (byte)255 : (byte)q;
+                }
+                if ((toCash | spoil) != 0)
+                {
+                    a.CpuUnits[x] = spoil >= toCash ? spoil : toCash;
+                    continue;
+                }
+            }
+            // Nothing to sell: maybe buy.
+            n = 0;
+            ushort willing = LandAuction.W(t, Willing + 2 * x);
+            if ((byte)a.PriceStart < MinBuy[k] && willing >= 1100)
+            {
+                ushort q = Div16((ushort)(willing - 800), (byte)a.PriceStart);
+                if (q != 0)
+                {
+                    a.Role[x] = 0;
+                    byte want = (byte)q >= 25 ? (byte)25 : (byte)q;
+                    byte room = (byte)(50 - held);
+                    n = room < want ? room : want;
+                }
+            }
+            a.CpuUnits[x] = n;
+        }
+    }
+
+    static readonly byte[] MinSell = { 50, 100 }, MinBuy = { 46, 86 }; // $AB75, $AB77
+
+    /// <summary>div16Bits ($11A2): 16 by 8 bits; dividing by 0 gives $FFFF.</summary>
+    internal static ushort Div16(ushort n, byte d) => d == 0 ? (ushort)0xFFFF : (ushort)(n / d);
     static IEnumerable BuySell(Game game, Auction a) => throw new NotImplementedException();
 }

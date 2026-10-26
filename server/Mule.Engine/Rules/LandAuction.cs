@@ -57,6 +57,10 @@ public sealed class Auction
     public byte StepTimer;                              // $AF
     public byte StepReady;                              // $D9
     public byte Flash;                                  // $DA status: surplus and shortage shown
+    public readonly byte[] Role = new byte[4];          // $B1A9 side a CPU takes (1 seller)
+    public readonly byte[] CpuUnits = new byte[4];      // $B487 units a CPU means to trade
+    public byte Changed;                                // $AF a player switched side
+    public bool CalledOff;                              // nothing to trade
 }
 
 /// <summary>A view of part of a byte array, for original variables that share memory.</summary>
@@ -238,8 +242,8 @@ public static class LandAuction
     // +$11 most the player will pay, +$1A, +$1E, +$22 per-player flags.
     const int Value = 0, Keep = 8, Willing = 0x11, Quit = 0x1E;
 
-    static ushort W(byte[] t, int i) => (ushort)(t[i] | (t[i + 1] << 8));
-    static void SetW(byte[] t, int i, ushort v) { t[i] = (byte)v; t[i + 1] = (byte)(v >> 8); }
+    internal static ushort W(byte[] t, int i) => (ushort)(t[i] | (t[i + 1] << 8));
+    internal static void SetW(byte[] t, int i, ushort v) { t[i] = (byte)v; t[i + 1] = (byte)(v >> 8); }
 
     /// <summary>ai1 ($AD4B) for a land auction: each CPU keeps 400-655 in hand.</summary>
     static void Ai1Land(GameState g, IRandomSource rng)
@@ -253,7 +257,7 @@ public static class LandAuction
 
     /// <summary>ai2 ($AE6B): the most each player will pay. Humans: their cash. CPUs: cash minus what they
     /// keep (or the opening price when 4 times it is in hand, else 1), at most their value of the plot.</summary>
-    static void Ai2(GameState g, Auction a)
+    internal static void Ai2(GameState g, Auction a)
     {
         var t = g.PlotsTemp3;
         for (int p = 3; p >= 0; p--)
@@ -276,7 +280,7 @@ public static class LandAuction
     }
 
     /// <summary>sub_8E07: the price at a height.</summary>
-    static ushort PriceAt(GameState g, Auction a, byte pos)
+    internal static ushort PriceAt(GameState g, Auction a, byte pos)
     {
         byte d = (byte)((byte)(a.Top - pos) >> 1);
         if (a.Increment != 1) d = (byte)(d << 2);
@@ -284,7 +288,7 @@ public static class LandAuction
     }
 
     /// <summary>sub_8E27: the height of a price.</summary>
-    static byte PosOf(GameState g, Auction a, ushort price)
+    internal static byte PosOf(GameState g, Auction a, ushort price)
     {
         ushort d = (ushort)(price - g.LastPriceStart[a.ScaleIndex >> 1]);
         if (a.Increment != 1) d >>= 2;
@@ -292,7 +296,7 @@ public static class LandAuction
     }
 
     /// <summary>auctionBuySellAi3 ($8F77): for buyers, whether they can bid and how high they can go.</summary>
-    static void Ai3(GameState g, Auction a)
+    internal static void Ai3(GameState g, Auction a)
     {
         var t = g.PlotsTemp3;
         for (int p = 3; p >= 0; p--)
@@ -316,7 +320,7 @@ public static class LandAuction
     }
 
     /// <summary>sub_8E4B: stick masks from what each player can afford.</summary>
-    static void Masks(Auction a)
+    internal static void Masks(Auction a)
     {
         for (int x = 3; x >= 0; x--)
         {
@@ -331,7 +335,7 @@ public static class LandAuction
 
     /// <summary>sub_9845: stick masks while the leader holds the top line: a buyer who cannot pay one
     /// more step can only go down.</summary>
-    static void MasksAtTop(GameState g, Auction a)
+    internal static void MasksAtTop(GameState g, Auction a)
     {
         for (int x = 3; x >= 0; x--)
         {
@@ -426,7 +430,7 @@ public static class LandAuction
     }
 
     /// <summary>sub_9595: one movement tick (every 8 frames), 2 height units per tick.</summary>
-    static void Move(GameState g, Vbi v, Auction a)
+    internal static void Move(GameState g, Vbi v, Auction a)
     {
         a.TopPush = 0;
         a.SellerMove = 0;
@@ -456,7 +460,7 @@ public static class LandAuction
         }
     }
 
-    static void Step(Auction a, int x, int y)
+    internal static void Step(Auction a, int x, int y)
     {
         byte d = y < 0 ? (byte)0 : Delta[y];
         byte n = (byte)(a.Pos[x] + d);
@@ -466,7 +470,7 @@ public static class LandAuction
     }
 
     /// <summary>sub_96B9: everyone's stick held still, then one movement tick.</summary>
-    static IEnumerable Freeze(Auction a)
+    internal static IEnumerable Freeze(Auction a)
     {
         for (int x = 0; x < 4; x++) a.Mask[x] = 0x0F;
         a.Tick = 0xFF;
@@ -475,7 +479,7 @@ public static class LandAuction
     }
 
     /// <summary>sub_9899: raises the whole price scale by one increment when the leader pushes at the top.</summary>
-    static void RaiseScale(GameState g, Auction a)
+    internal static void RaiseScale(GameState g, Auction a)
     {
         a.AtTop = 0xFF;
         a.PriceChanged = 0;
@@ -771,7 +775,7 @@ public static class LandAuction
     }
 
     /// <summary>sub_91EA: a private offer begins (screen and sound, everyone else held still).</summary>
-    static IEnumerable StartOffer(Game game, Auction a)
+    internal static IEnumerable StartOffer(Game game, Auction a)
     {
         if (a.Offer == 0 || a.OfferSetUp != 0) yield break;
         a.OfferSetUp++;
@@ -795,7 +799,7 @@ public static class LandAuction
     }
 
     /// <summary>sub_92B9: the private offer is over; everyone back.</summary>
-    static IEnumerable EndOffer(Game game, Auction a)
+    internal static IEnumerable EndOffer(Game game, Auction a)
     {
         var handler = game.Vbi.Handler;
         game.Vbi.Handler = null;

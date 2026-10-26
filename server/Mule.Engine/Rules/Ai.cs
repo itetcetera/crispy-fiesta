@@ -65,12 +65,12 @@ public static class Ai
     {
         CalcGoodsQuality(g, rng, 3);
         g.AiMode = 2;
-        Span<byte> saved = stackalloc byte[3];
         // The original loops on currentPlayer, which ends at $FF.
         for (g.CurrentPlayer = 3; (g.CurrentPlayer & 0x80) == 0; g.CurrentPlayer--)
         {
             int player = g.CurrentPlayer;
-            g.GoodsQuality.AsSpan(0, 3).CopyTo(saved);
+            // Saved in the bytes the goods auction later uses for each player's surplus ($B1B1).
+            g.GoodsQuality.AsSpan(0, 3).CopyTo(g.PlayersGoodGap);
             if (g.NumRound == 1)
             {
                 int good = rng.NextByte() & 3;
@@ -85,7 +85,7 @@ public static class Ai
                 g.PlotsTemp[plot] = q >= d ? (byte)(q - d) : (byte)0;
             }
             g.PlotsTemp.CopyTo(g.PlayersPlotsQuality, player * 45);
-            saved.CopyTo(g.GoodsQuality);
+            g.PlayersGoodGap.AsSpan(0, 3).CopyTo(g.GoodsQuality);
         }
     }
 
@@ -114,6 +114,7 @@ public static class Ai
     {
         byte prod = Production.CalcPlotProdWithEcos(g, exp, plot, player);
         byte energyReq = Production.CalcEnergyReq(g, player);
+        g.PlayersGoodShort[0] = energyReq; // kept in $B1AD
         int x = exp - 1;
         byte q = g.GoodsQuality[x];
         byte y = q;

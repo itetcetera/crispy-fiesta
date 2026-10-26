@@ -25,3 +25,5 @@ public sealed record GoodsStatusEvent(int Good) : GameEvent;
 public sealed record GoodsBarsEvent(int Kind, ushort[] From, ushort[] To) : GameEvent;
 /// <summary>New requirements; <paramref name="Kinds"/>: 0 surplus, 12 shortage per player.</summary>
 public sealed record GoodsRequirementEvent(byte[] Required, byte[] Kinds) : GameEvent;
+/// <summary>Who is buying and who is selling (1 = seller).</summary>
+public sealed record GoodsSelectEvent(int Good, byte[] Sellers) : GameEvent;
