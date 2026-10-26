@@ -9,14 +9,15 @@ namespace Mule.Engine.Rules;
 public static class MapCollisions
 {
     const int FirstLine = 8, EndLine = 248;
-    const int MapTop = 45, RowLines = 8;   // the twenty mode 6 rows of the map
+    const int MapTop = 44, RowLines = 8;   // the twenty mode 6 rows of the map
     const int PlayfieldLeft = 48, PlayfieldRight = 208;
     const int PlayerLeft = 34, PlayerRight = 222; // where the GTIA checks collisions
 
-    /// <summary>The quarter-row whose positions a scanline shows. The first interrupt comes three
-    /// lines before the map; the last one leaves the positions alone, so the lines above and below
+    /// <summary>The quarter-row whose positions a scanline shows. Each interrupt comes on a row's
+    /// last line and its writes take effect a line after the next row starts; the first comes four
+    /// lines before the map, and the last leaves the positions alone, so the lines above and below
     /// the map show the bottom row's.</summary>
-    static int Band(int line) => line < 42 ? 19 : line < MapTop + RowLines ? 0 : Math.Min(19, (line - MapTop) / RowLines);
+    static int Band(int line) => line < 42 ? 19 : line < MapTop + RowLines + 1 ? 0 : Math.Min(19, (line - MapTop - 1) / RowLines);
 
     /// <summary>P0PL (bit 2 mountains, bit 3 river or store) and whether P0PF is set.</summary>
     public static (byte Players, bool Playfield) Compute(GameState g, Turn t)

@@ -29,20 +29,24 @@ public class PlayerTurnTests
         return new Scenario(g, seed);
     }
 
-    /// <summary>The scripted player: goes to random doors and in, now and then waits.</summary>
+    /// <summary>The scripted player: in town it goes to random doors and in; with a job for a mule or
+    /// an errand it leaves for the map, walks to a plot (often its own) and presses, wanders now and
+    /// then, and comes back to the store.</summary>
     sealed class Agent
     {
         readonly Random _r;
-        int _target = -1, _wait, _pressAt = -1;
+        int _target = -1, _wait, _pressAt = -1, _tx = -1, _ty, _wander, _leave;
         bool _down, _entering;
         int _lastY = -1;
+        byte _wanderStick;
         public Agent(int seed) => _r = new Random(seed);
         static readonly int[] Top = { 10, 16, 22, 28 }, Bottom = { 10, 15, 20, 25, 27, 29 };
+        static readonly byte[] Directions = { 0x0E, 0x0D, 0x0B, 0x07, 0x0A, 0x06, 0x09, 0x05 };
 
         public (bool button, byte stick) Next(byte[] ram)
         {
             byte x = ram[0x9F], y = ram[0xA3], c1 = ram[0xC1], ad = ram[0xAD];
-            if (c1 == 0xFF || ad != 0)
+            if (c1 == 0xFF || (ad != 0 && ram[0xD3] > 101))
             {
                 // Waiting to start: press after a little while.
                 if (_pressAt < 0) _pressAt = _r.Next(5, 120);
@@ -50,17 +54,31 @@ public class PlayerTurnTests
                 return (false, 15);
             }
             if (_wait > 0) { _wait--; return (false, 15); }
+            return ad != 0 ? OnMap(ram, x, y) : InTown(ram, x, y);
+        }
+
+        (bool, byte) InTown(byte[] ram, byte x, byte y)
+        {
+            _tx = -1;
+            bool mule = ram[0xE0] != 0;
+            byte outfit = ram[0xBC];
+            bool street = y >= 0x54 && y < 0x5E;
+            if (street && _leave == 0 && ((mule && outfit != 0) || outfit >= 5) && _r.Next(3) != 0) _leave = _r.Next(2) == 0 ? 0x0B : 0x07;
+            if (_leave != 0)
+            {
+                if (!street) { _leave = 0; return (false, y < 0x54 ? (byte)0x0D : (byte)0x0E); }
+                return (false, (byte)_leave);
+            }
             if (_target < 0)
             {
                 if (_r.Next(6) == 0) { _wait = _r.Next(10, 80); return (false, 15); }
-                bool mule = ram[0xE0] != 0, outfit = ram[0xBC] != 0;
+                bool fitted = outfit != 0;
                 int k = _r.Next(10);
                 if (!mule) { _down = k < 8; _target = k < 5 ? Bottom[3 + _r.Next(3)] : _down ? Bottom[_r.Next(3)] : Top[_r.Next(Top.Length)]; }
-                else if (!outfit) { _down = k >= 7; _target = _down ? Bottom[_r.Next(Bottom.Length)] : Top[_r.Next(Top.Length)]; }
+                else if (!fitted) { _down = k >= 7; _target = _down ? Bottom[_r.Next(Bottom.Length)] : Top[_r.Next(Top.Length)]; }
                 else { _down = k < 6; _target = _down ? Bottom[_r.Next(Bottom.Length)] : Top[_r.Next(Top.Length)]; }
             }
             int col = (x - 0x30) >> 2;
-            bool street = y >= 0x54 && y < 0x5E;
             byte door = _down ? (byte)0x0D : (byte)0x0E;
             if (_entering && _lastY >= 0 && (_down ? y < _lastY : y > _lastY)) _entering = false; // came back out
             _lastY = y;
@@ -75,6 +93,39 @@ public class PlayerTurnTests
             if (col > _target) return (false, 0x0B);
             _entering = true;
             return (false, door);
+        }
+
+        (bool, byte) OnMap(byte[] ram, byte x, byte y)
+        {
+            _leave = 0; _target = -1; _entering = false;
+            if (_wander > 0) { _wander--; return (false, _wanderStick); }
+            if (_r.Next(150) == 0) { _wander = _r.Next(20, 150); _wanderStick = Directions[_r.Next(Directions.Length)]; return (false, _wanderStick); }
+            if (_tx < 0)
+            {
+                bool mule = ram[0xE0] != 0;
+                byte outfit = ram[0xBC], marked = ram[0xCB];
+                int plot = -1;
+                bool errand = outfit >= 5 && (marked & 0x80) != 0;
+                if ((mule && _r.Next(5) != 0) || errand)
+                {
+                    var mine = Enumerable.Range(0, 45).Where(i => ram[0xB000 + i] == ram[0xAC]).ToList();
+                    plot = mine.Count > 0 && _r.Next(4) != 0 ? mine[_r.Next(mine.Count)] : _r.Next(45);
+                }
+                if (plot < 0 || plot == 22) { _tx = 0x7B; _ty = 0x74; }
+                else { _tx = 56 + plot % 9 * 16 + _r.Next(2, 12); _ty = 44 + plot / 9 * 32 + _r.Next(4, 26); }
+            }
+            int dx = _tx - x, dy = _ty - y;
+            if (Math.Abs(dx) <= 1 && Math.Abs(dy) <= 1)
+            {
+                _tx = -1;
+                if (_r.Next(5) == 0) return (false, 15);
+                _wait = _r.Next(0, 8);
+                return (true, 15);
+            }
+            byte stick = 15;
+            if (dx > 1) stick &= 0x07; else if (dx < -1) stick &= 0x0B;
+            if (dy > 1) stick &= 0x0D; else if (dy < -1) stick &= 0x0E;
+            return (false, stick);
         }
     }
 
@@ -108,6 +159,12 @@ public class PlayerTurnTests
             {
                 case 0x5BB5:
                     {
+                        if (Environment.GetEnvironmentVariable("TURN_FRAME") is string tf0 && vbi == long.Parse(tf0))
+                            for (int row = 0; row < 20; row++) File.AppendAllText("/tmp/claude-0/frame_o.txt", $"S{row} " + string.Join(" ", Enumerable.Range(0, 20).Select(i => r[0xB528 + row * 20 + i].ToString("X2"))) + "\n");
+                        if (Environment.GetEnvironmentVariable("TURN_FRAME") is string tf && vbi == long.Parse(tf))
+                            for (int l = 8; l < 248; l++)
+                                if (r[0xBC00 + l] != 0)
+                                    File.AppendAllText("/tmp/claude-0/frame_o.txt", $"L{l} p0 {r[0xBC00 + l]:X2} p2 {r[0xBE00 + l]:X2} p3 {r[0xBF00 + l]:X2} rx {string.Join(",", Enumerable.Range(0, 20).Select(i => r[0xB235 + i].ToString("X2")))}\n");
                         // The state the last frame left, then this frame's controls.
                         string w = $"w {r[0x9F]:X2} {r[0xA3]:X2} {r[0xD3]} {r[0xE0]} {r[0xBC]} {r[0xAD]}" + (r[0xE0] != 0 ? $" m {r[0xA0]:X2} {r[0xA4]:X2}" : "") + (r[0xAD] != 0 ? $" c {m.M.Read(0xD00C) & 0x0C:X} {(m.M.Read(0xD004) != 0 ? 1 : 0)}" : "") + (Debug ? $" a {r[0xA9]:X2} c {r[0xC1]:X2} s {r[0x9E]:X2}" : "");
                         if (w != last && vbi > 0) { events.Add($"{vbi} {w}"); last = w; }
@@ -189,6 +246,12 @@ public class PlayerTurnTests
             for (int i = seen; i < game.Events.Count; i++)
                 if (game.Events[i] is TurnMessageEvent tm && tm.Code is > 0 and < 30 && tm.Text == "") events.Add($"{game.Frame} msg {tm.Code}");
             turn = game.Turn;
+            if (turn != null && Environment.GetEnvironmentVariable("TURN_FRAME") is string tf0 && game.Frame == long.Parse(tf0))
+                for (int row = 0; row < 20; row++) File.AppendAllText("/tmp/claude-0/frame_p.txt", $"S{row} " + string.Join(" ", Enumerable.Range(0, 20).Select(i => state.MapScreen[row * 20 + i].ToString("X2"))) + "\n");
+            if (turn != null && Environment.GetEnvironmentVariable("TURN_FRAME") is string tf && game.Frame == long.Parse(tf))
+                for (int l = 8; l < 248; l++)
+                    if (turn.Pm0[l] != 0)
+                        File.AppendAllText("/tmp/claude-0/frame_p.txt", $"L{l} p0 {turn.Pm0[l]:X2} h {turn.Hpos0:X2} p2 {state.SprMount[l]:X2} p3 {state.SprRiver[l]:X2} rx {string.Join(",", state.RiverStoreX.Select(b => b.ToString("X2")))}\n");
             if (turn != null && !game.Finished)
             {
                 string w = $"w {turn.X:X2} {turn.Y:X2} {turn.Time} {turn.HasMule} {turn.Outfit} {turn.Map}" + (turn.HasMule != 0 ? $" m {turn.MuleX:X2} {turn.MuleY:X2}" : "") + (turn.Map != 0 ? Collisions(state, turn) : "") + (Debug ? $" a {turn.Phase:X2} s {game.Vbi.Sound:X2}" : "");
@@ -202,7 +265,7 @@ public class PlayerTurnTests
 
     static string Collisions(GameState g, Turn t)
     {
-        var (pl, pf) = MapCollisions.Compute(g, t);
+        var (pl, pf) = PlayerTurn.LatchedNow(g, t);
         return $" c {pl:X} {(pf ? 1 : 0)}";
     }
 

@@ -38,6 +38,9 @@ public sealed class Turn
     /// from them. Only the map drawing is kept: going to the map clears the page first.</summary>
     public readonly byte[] Pm0 = new byte[256];
     public byte Hpos0;
+    /// <summary>P0PL/P0PF as the GTIA latched them over the frame being shown.</summary>
+    public (byte Players, bool Playfield) Latch;
+    public (byte Players, bool Playfield) Seen;
 }
 
 /// <summary>playersTurn ($6628): every player's development turn, in ranking order (reversed when the
@@ -166,21 +169,26 @@ public static class PlayerTurn
     {
         var g = game.State;
         var v = game.Vbi;
-        bool first = true;
+        // A busy loop entered at $66F5; each pass sees what the last vertical blank changed.
         while (true)
         {
-            if (!first && v.Button[t.Ctrl] == 0) yield break;
-            first = false;
             if (cpu && AnyHumanPressing(g, v)) yield break;
-            if (v.Timers[0] != 0) { yield return null; continue; }
-            // The colour flashes.
-            v.Timers[0] = 0x0A;
-            if (!cpu) continue;
-            if (AnyHumanPressing(g, v)) yield break;
-            if ((sbyte)--t.Flashes >= 0) continue;
-            t.Flashes = 0;
-            if (t.EventShown == 1) continue;
-            yield break;
+            if (v.Timers[0] == 0)
+            {
+                // The colour flashes.
+                v.Timers[0] = 0x0A;
+                if (cpu)
+                {
+                    if (AnyHumanPressing(g, v)) yield break;
+                    if ((sbyte)--t.Flashes < 0)
+                    {
+                        t.Flashes = 0;
+                        if (t.EventShown != 1) yield break;
+                    }
+                }
+            }
+            if (v.Button[t.Ctrl] == 0) yield break;
+            yield return null;
         }
     }
 
@@ -333,6 +341,7 @@ public static class PlayerTurn
                 {
                     t.Exits++;
                     result.Result = Outcome.Exit;
+                    game.Trace?.Invoke("exit");
                     yield return ToMap(game, t);
                     yield return game.WaitJiffy(6);
                     v.Timers[2] = 0;
@@ -546,7 +555,6 @@ public static class PlayerTurn
         var g = game.State;
         var v = game.Vbi;
         byte cp = g.CurrentPlayer;
-        game.Trace?.Invoke("exit");
         while (true)
         {
             if (t.Time == 0) { result.Result = Outcome.TimeOut; yield break; }
@@ -574,7 +582,13 @@ public static class PlayerTurn
         }
     }
 
-    static byte Hits(Game game, Turn t) => MapCollisions.Compute(game.State, t).Players;
+    /// <summary>The main loop reads the collision register during the frame.</summary>
+    static byte Hits(Game game, Turn t)
+    {
+        var c = MapCollisions.Compute(game.State, t);
+        t.Seen = ((byte)(t.Seen.Players | c.Players), t.Seen.Playfield || c.Playfield);
+        return c.Players;
+    }
 
     /// <summary>$6B5F: the button on a plot.</summary>
     static IEnumerable PlotAction(Game game, Turn t)
@@ -662,16 +676,29 @@ public static class PlayerTurn
     static void Vbl(Game game, Turn t)
     {
         var v = game.Vbi;
-        if (t.MuleWalkOnly) { Steps(game, t); return; }
-        if (!t.Running) return;
-        if (v.Timers[1] == 0 && t.Time != 0 && (t.Time & 0x80) == 0)
+        t.Latch = LatchedNow(game.State, t);
+        t.Seen = default;
+        if (t.MuleWalkOnly) Steps(game, t);
+        else if (t.Running)
         {
-            t.Time--;
-            if (t.WampusTime != 0) t.WampusTime--;
-            v.Timers[1] = t.TimeWait;
+            if (v.Timers[1] == 0 && t.Time != 0 && (t.Time & 0x80) == 0)
+            {
+                t.Time--;
+                if (t.WampusTime != 0) t.WampusTime--;
+                v.Timers[1] = t.TimeWait;
+            }
+            Wampus(game, t);
+            Steps(game, t);
         }
-        Wampus(game, t);
-        Steps(game, t);
+    }
+
+    /// <summary>What the GTIA has latched over the frame being shown: the state the main loop left,
+    /// plus anything the main loop saw before it changed the sprites (it polls during the frame,
+    /// so it sees the walker's lines before it acts).</summary>
+    public static (byte Players, bool Playfield) LatchedNow(GameState g, Turn t)
+    {
+        var (p, f) = MapCollisions.Compute(g, t);
+        return ((byte)(p | t.Seen.Players), f || t.Seen.Playfield);
     }
 
     static void Wampus(Game game, Turn t)
@@ -774,7 +801,7 @@ public static class PlayerTurn
     {
         if (t.NewX < 0x37 || t.NewX >= 0xC6) t.NewX = t.X;
         if (t.NewY < 0x2C || t.NewY >= 0xC5) { t.NewY = t.Y; return; }
-        var (hits, playfield) = MapCollisions.Compute(game.State, t);
+        var (hits, playfield) = t.Latch;
         if ((hits & 4) != 0)
         {
             if (playfield) return;
