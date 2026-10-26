@@ -20,6 +20,8 @@ public static class StateMapper
         new("plotsKnownCrystite", 0xB45A, g => g.PlotsKnownCrystite),
         new("mountainsX", 0xB221, g => g.MountainsX),
         new("riverStoreX", 0xB235, g => g.RiverStoreX),
+        new("sprMount", 0xB900, g => g.SprMount),
+        new("sprRiver", 0xBA00, g => g.SprRiver),
         new("goodsPlayersNb", 0xB1C2, g => g.GoodsPlayersNb),
         new("expsPlayersNb", 0xB1D6, g => g.ExpsPlayersNb),
         new("goodsPlayersProd", 0xB1EA, g => g.GoodsPlayersProd),

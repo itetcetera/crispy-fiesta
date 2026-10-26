@@ -251,6 +251,9 @@ public static class PlayerTurn
     static IEnumerable ToMap(Game game, Turn t)
     {
         t.Running = false;
+        // The drawing before the first wait can run past the vertical blank when the caller has
+        // just drawn a lot (the outfit message and the money).
+        if (game.Race?.Invoke("map late") == true) yield return null;
         yield return ToMapDisplay(game);
         yield return game.Frames(ToMapFrames);
         MapMode(game, t);
@@ -341,13 +344,17 @@ public static class PlayerTurn
                 }
             }
             byte a = t.Y;
+            bool outfitted = false;
             if (a < 0x39)
             {
                 yield return Outfitting(game, t);
                 v.Timers[1] = 6;
                 a = t.Y;
+                outfitted = true;
             }
-            if (a < 0x78) { yield return null; continue; }
+            // The loop spins with nothing to wait on: a new pass sees only what the next vertical blank
+            // changes, unless this pass did something itself.
+            if (a < 0x78) { if (!outfitted) yield return null; continue; }
             t.Mask = 0x0F;
             v.Timers[1] = 6;
             byte b = t.Building;

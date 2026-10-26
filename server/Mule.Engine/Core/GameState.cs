@@ -50,6 +50,8 @@ public sealed class GameState
     public readonly byte[] MountainsX = new byte[20];           // $B221 x of each mountain quarter-row
     public readonly byte[] RiverStoreX = new byte[20];          // $B235 river/store x per quarter-row
     public byte OldRiverStoreX, OldMountainX;                   // $B249, $B24A: the first quarter-row's, while the town screen uses it
+    public readonly byte[] SprMount = new byte[256];            // $B900 mountain sprite rows (player 2 on the map)
+    public readonly byte[] SprRiver = new byte[256];            // $BA00 river and store sprite rows (player 3 on the map)
 
     // Per player, per job / good
     public readonly byte[] GoodsShortage = new byte[3];         // $B19D food, energy, smithore shortage flags

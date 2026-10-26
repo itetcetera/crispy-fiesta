@@ -157,6 +157,8 @@ public class PlayerTurnTests
                     "message first" => at.Any(e => e.Item1 == game.Frame && e.Item2.StartsWith("msg")),
                     "title quick" => FromPlayer().First(e => e.Item2 == "event").Item1 == game.Frame + 6,
                     "player late" => game.Frame > 0 && FromPlayer().Skip(1).TakeWhile(e => e.Item2 != "event").FirstOrDefault(e => e.Item2.StartsWith("w ")).Item1 > game.Frame,
+                    // The map screen comes 25 frames after sub_5227 starts, unless its first drawing ran late.
+                    "map late" => at.First(e => e.Item1 > game.Frame && e.Item2.StartsWith("w ") && e.Item2.Split(' ')[6] == "1").Item1 > game.Frame + 25,
                     _ => false,
                 };
                 if (r) Races++;

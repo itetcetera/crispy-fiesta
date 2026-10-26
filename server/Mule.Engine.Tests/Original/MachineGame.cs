@@ -24,6 +24,7 @@ public sealed class MachineGame : IRandomByteSource
         M.Cpu.I = false;
         M.Cpu.D = false;
         M.Ram[0x4D] = 0; // attract-mode counter
+        M.Write(0xD407, 0xB8); // PMBASE: set once at boot ($42CF), and it has no shadow in the snapshot
         M.AfterStep = c =>
         {
             if (CosmeticFrom.Contains(c.PC)) Cosmetic = true;

@@ -78,9 +78,22 @@ public static class Setup
             } while (onRight == 0 || onRight == 4);
         }
 
-        // Mountain glyph styles (cosmetic) read 20 random bytes ($43D9); river glyph rows read 116 ($4405).
-        for (int i = 0; i < 20; i++) rng.NextByte();
-        for (int y = 241; y >= 10; y -= 2) rng.NextByte();
+        // The sprite rows ($43D5): a random mountain shape for each quarter-row, random river rows on
+        // every other line, the store over the middle.
+        for (int k = 0; k <= 19; k++)
+        {
+            int x = (rng.NextByte() & 3) << 3;
+            for (int i = 0; i < 8; i++) g.SprMount[k * 8 + 44 + i] = MapGraphics.MountainGlyphs[x + i];
+        }
+        for (int y = 241; y >= 10; y -= 2)
+        {
+            g.SprRiver[y] = MapGraphics.RiverGlyphs[rng.NextByte() & 7];
+            g.SprRiver[y - 1] = 0;
+        }
+        g.SprRiver[0x6B] = 0;
+        g.SprRiver[0x8C] = 0;
+        for (int y = 108, x = 0; y < 140; x++)
+            for (int i = 0; i < 4; i++) g.SprRiver[y++] = MapGraphics.CityGlyph[x];
 
         GenerateRiverStoreX(g, rng);
         g.OldRiverStoreX = g.RiverStoreX[0];

@@ -431,9 +431,20 @@ public sealed class Atari800 : IBus
 
     readonly byte[] _pmMask = new byte[228]; // bit n = player n, bit 4+n = missile n
 
+    /// <summary>For studying the display: called on each displayed scanline before its collisions.</summary>
+    public Action<int>? OnLine;
+    public byte[] DebugPlayfield => _pf;
+    public byte[] DebugHposP => _hposp;
+    public byte[] DebugGrafP => _grafp;
+    public byte[] DebugSizeP => _sizep;
+    public byte DebugGrafM => _grafm;
+    public byte[] DebugHposM => _hposm;
+    public byte DebugSizeM => _sizem;
+
     void ComputeCollisions()
     {
         if (Line < FirstDisplayLine || Line >= VblankLine) return;
+        OnLine?.Invoke(Line);
         Array.Clear(_pmMask);
         for (int n = 0; n < 4; n++)
         {
