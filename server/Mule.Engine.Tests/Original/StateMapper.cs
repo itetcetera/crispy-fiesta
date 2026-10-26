@@ -34,6 +34,7 @@ public static class StateMapper
         new("playersAi", 0x0900, g => g.PlayersAi),
         new("playersRace", 0x091D, g => g.PlayersRace),
         new("playersTurnTimeWait", 0xB370, g => g.PlayersTurnTimeWait),
+        new("outfitsPriceL", 0xB2B1, g => g.OutfitsPrice),
     };
 
     static readonly WordField[] Words =

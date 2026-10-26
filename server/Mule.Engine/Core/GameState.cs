@@ -81,6 +81,14 @@ public sealed class GameState
     public byte AiMode;                                         // $B375 (0 none, 1 turn preview, 2 land auction)
     public byte ProdMax;                                        // $94 after calcPlotsProd
 
+    // Scores ($B24B typesPlayersScore, $B32C totalScore, $B325 successScore)
+    public const int ScoreMoney = 0, ScoreLand = 1, ScoreGoods = 2, ScoreTotal = 3;
+    public readonly int[] TypesPlayersScore = new int[16];      // [type*4+player]
+    public int TotalScore;                                      // colony total
+    public byte SuccessScore;                                   // colony rating after round 12
+
+    public int Score(int player, int type) => TypesPlayersScore[type * 4 + player];
+
     public bool IsCpu(int player) => (PlayersAi[player] & 0x80) != 0;
 
     public byte CrystiteAt(int plot) => ExpsPlotsCapacity[3 * Plots + plot];

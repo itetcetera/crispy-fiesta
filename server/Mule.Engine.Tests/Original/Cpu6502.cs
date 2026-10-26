@@ -45,7 +45,7 @@ public sealed class Cpu6502
     /// Calls the subroutine at <paramref name="addr"/> and runs until it returns.
     /// Throws if it runs more than <paramref name="maxSteps"/> instructions.
     /// </summary>
-    public void Call(ushort addr, long maxSteps = 50_000_000)
+    public void Call(ushort addr, long maxSteps = 50_000_000, ushort? stopAt = null)
     {
         // Return address $FFFF-1 sentinel: RTS pops and adds 1 -> 0x0000 is ambiguous, so push $FFFE.
         const ushort sentinel = 0xFFFE;
@@ -56,12 +56,13 @@ public sealed class Cpu6502
         for (long i = 0; i < maxSteps; i++)
         {
             if (PC == sentinel && S == startS) return;
+            if (stopAt.HasValue && PC == stopAt.Value) { S = startS; return; }
             Step();
         }
         throw new TimeoutException($"Routine ${addr:X4} did not return (PC=${PC:X4})");
     }
 
-    /// <summary>Optional hook run before each instruction; return true to stop <see cref="Call"/> early by throwing.</summary>
+    /// <summary>Optional hook run before each instruction.</summary>
     public Action<Cpu6502>? BeforeStep;
 
     public void Step()

@@ -157,3 +157,56 @@ public class DifferentialTests
         }
     }
 }
+
+public class ScoringDifferentialTests
+{
+    [Fact]
+    public void CalcScore_matches_calcAndDrawScore()
+    {
+        int checkedRatings = 0, boundaryHits = 0;
+        for (int seed = 0; seed < 600; seed++)
+        {
+            var g = DifferentialTests.RandomState(seed);
+            if (seed % 2 == 0) g.NumRound = 12;
+            // Spread totals over the rating range, and hit exact rating boundaries.
+            for (int p = 0; p < 4; p++) g.PlayersCash[p] = (ushort)new Random(seed * 7 + p).Next(0, 40000);
+            if (seed % 4 == 0)
+            {
+                Production.InitVarsFromMaps(g);
+                var tmp = StateMapper.FromRam(CloneRam(g));
+                Scoring.CalcScore(tmp, new ScriptedRandom(0));
+                int target = (seed / 4 % 14) * 10000 + (seed / 4 % 3) - 1; // just below, at, just above k*10000
+                int delta = target - tmp.TotalScore;
+                int cash = g.PlayersCash[0] + delta;
+                if (cash >= 0 && cash <= 65535) g.PlayersCash[0] = (ushort)cash;
+            }
+            var orig = new OriginalGame();
+            StateMapper.ToRam(g, orig.Cpu);
+            var rngO = new ScriptedRandom(seed);
+            orig.Random = rngO.NextByte;
+            orig.Call("calcAndDrawScore", stopAt: OriginalGame.Sym("drawScore"));
+
+            var port = StateMapper.FromRam(CloneRam(g));
+            var rngP = new ScriptedRandom(seed);
+            Scoring.CalcScore(port, rngP);
+
+            for (int type = 0; type < 4; type++)
+                for (int p = 0; p < 4; p++)
+                    Assert.Equal(orig.ReadFloat((ushort)(0xB24B + type * 24 + p * 6)), port.Score(p, type));
+            Assert.Equal(orig.ReadFloat(0xB32C), port.TotalScore);
+            Assert.Equal(rngO.Position, rngP.Position);
+            Assert.Equal(orig.Cpu.Mem.AsSpan(0xB328, 4).ToArray(), port.OrdersPlayer);
+            if (g.NumRound == 12)
+            {
+                Assert.True(orig.Cpu.Mem[0xB325] == port.SuccessScore, $"seed {seed} total {port.TotalScore}: original rating {orig.Cpu.Mem[0xB325]}, port {port.SuccessScore}");
+                checkedRatings++;
+                int m = port.TotalScore % 10000;
+                if (m <= 1 || m == 9999) boundaryHits++;
+            }
+        }
+        Assert.True(checkedRatings > 100);
+        Assert.True(boundaryHits > 25, $"boundary hits {boundaryHits}");
+    }
+
+    static Cpu6502 CloneRam(GameState g) { var c = new Cpu6502(); StateMapper.ToRam(g, c); return c; }
+}

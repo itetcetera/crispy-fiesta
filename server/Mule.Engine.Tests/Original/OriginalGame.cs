@@ -42,7 +42,25 @@ public sealed class OriginalGame
     public static ushort Sym(string label) =>
         SymbolTable.Value.TryGetValue(label, out var a) ? a : throw new KeyNotFoundException(label);
 
-    public void Call(string label) => Cpu.Call(Sym(label));
+    public void Call(string label, ushort? stopAt = null) => Cpu.Call(Sym(label), stopAt: stopAt);
+
+    /// <summary>Reads a 6-byte Atari BCD floating point number (exponent byte, base 100).</summary>
+    public long ReadFloat(ushort addr)
+    {
+        byte e = Cpu.Mem[addr];
+        if (e == 0) return 0;
+        if ((e & 0x80) != 0) throw new InvalidOperationException("negative float");
+        long v = 0;
+        for (int i = 1; i <= 5; i++)
+        {
+            byte b = Cpu.Mem[addr + i];
+            v = v * 100 + (b >> 4) * 10 + (b & 15);
+        }
+        int shift = (e - 64) - 4; // mantissa holds 5 base-100 digits, first at 100^(e-64)
+        for (; shift < 0; shift++) v /= 100;
+        for (; shift > 0; shift--) v *= 100;
+        return v;
+    }
     public void Call(ushort addr) => Cpu.Call(addr);
 
     static Dictionary<string, ushort> LoadSymbols()
