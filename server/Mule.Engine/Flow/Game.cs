@@ -37,6 +37,10 @@ public sealed class Game
     /// <summary>Diagnostics for tests: named points in the phases.</summary>
     public Action<string>? Trace;
 
+    /// <summary>For tests: how a cycle race of the original went (see docs/PLAN.md, timing effects).
+    /// Unset, the port takes the way the original nearly always goes.</summary>
+    public Func<string, bool>? Race;
+
     /// <summary>waitJiffy ($1310): until the clock has moved on <paramref name="n"/> frames.</summary>
     public IEnumerable WaitJiffy(int n)
     {

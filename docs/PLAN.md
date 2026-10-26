@@ -48,7 +48,7 @@ screen geometry, message text).
    example the CPUs' thinking before the land grant) are modelled from measurements on the
    original and match within a few frames. Gameplay timing (cursor speed, timers, who gets a
    plot for a given press) matches exactly.
-6. Three timing effects of the original are left out because they depend on the exact 6502 cycle
+6. Four timing effects of the original are left out because they depend on the exact 6502 cycle
    at which a vertical blank lands, not on the rules:
    - The "press all buttons" wait (`loc_30A2`) can miss a timer tick when the blank falls
      between its timer check and its timer reset, so the original sometimes waits one more
@@ -59,7 +59,15 @@ screen geometry, message text).
      0.3% of steps).
    - The buy/sell choice screen's drawing (text, numbers, the CPUs' decisions) takes a
      different number of scanlines each time, so its time bar starts 2 to 4 jiffies after the
-     status screen ends. The port always takes 2; the goods tests allow up to 3 jiffies.
+     status screen ends. The port always takes 2; the select tests allow up to 3 jiffies, and the
+     trading tests ask (`Game.Race`, "select late") when the original started it.
+   - In goods trading, the main loop polls the movement tick, the sticks and the trade timer in
+     turn, and its drawing (prices, unit amounts) sometimes runs past one more blank. So when
+     two of these fall due on the same jiffy, the order the original handles them in depends on
+     the cycle. The port takes the usual order (`Game.Race` names each point: "tick first",
+     "slow tick", "slow unit", "quit late", "unit first"); the goods tests answer those questions with what the
+     original did, so every other rule is checked exactly. The rare order comes up about 2-3
+     times per auction, and shifts the trading by one jiffy.
 
 ## Layout
 

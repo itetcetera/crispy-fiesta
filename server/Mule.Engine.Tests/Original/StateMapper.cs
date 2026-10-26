@@ -70,6 +70,7 @@ public static class StateMapper
         new("lastBidStartLaH", 0xB2FC, g => (byte)(g.LastBidStartLa >> 8), (g, v) => g.LastBidStartLa = (ushort)((g.LastBidStartLa & 0xFF) | (v << 8))),
         new("levelAuctionTimeWait", 0xB327, g => g.LevelAuctionTimeWait, (g, v) => g.LevelAuctionTimeWait = v),
         new("auctionTimeReload", 0x9CEF, g => g.AuctionTimeReload, (g, v) => g.AuctionTimeReload = v),
+        new("goodsTimeReload", 0x9B8B, g => g.GoodsTimeReload, (g, v) => g.GoodsTimeReload = v),
         new("nbRounds", 0xB36F, g => g.NbRounds, (g, v) => g.NbRounds = v),
         new("cursorWait", 0xB36D, g => g.CursorWait, (g, v) => g.CursorWait = v),
         new("maxIndexCpu", 0x00D2, g => g.MaxIndexCpu, (g, v) => g.MaxIndexCpu = v),

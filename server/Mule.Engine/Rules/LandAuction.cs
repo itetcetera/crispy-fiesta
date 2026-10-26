@@ -61,6 +61,30 @@ public sealed class Auction
     public readonly byte[] CpuUnits = new byte[4];      // $B487 units a CPU means to trade
     public byte Changed;                                // $AF a player switched side
     public bool CalledOff;                              // nothing to trade
+    public byte Trade;                                  // $C2 trade under way: 1 player to player, $FF from the store, $80 to the store
+    public byte Ask = 0xFF;                             // $AD lowest seller ($FF the store)
+    public ushort LowAsk;                               // $B323 lowest asking price
+    public byte Mix;                                    // $B48B $FF all buyers, 0 all sellers, 1 both
+    public byte Needed, Available;                      // $B490 units the buyers lack, $B491 units for sale (food, energy)
+    public readonly byte[] Share = new byte[4];         // $B48C CPU eagerness
+    public byte FewSellers;                             // $F2
+    public byte CpuBound;                               // $F3 random bound for the CPUs' sticks
+    public byte StoreBuys;                              // $DE 0 the store buys at the opening price, $FF not
+    public byte ScaleRaised;                            // $DF
+    public byte Requests, RequestWindow;                // $D7, $96 collusion requests (tournament)
+    public readonly byte[] Track = new byte[4];         // $E8 button tracking for collusion requests
+    public byte StickBuyer, StickSeller;                // $DA, $DB last stick of the trading buyer and seller
+    public byte MessageHold;                            // $DC
+    public byte FlashTimer;                             // $DD
+    public readonly byte[] Log = new byte[4];           // $B2AB trade notices
+    public byte LogCount = 0xFF;                        // $9D
+    public byte TradeDelay;                             // $B374 timer ticks between units
+    public ushort PriceSum;                             // $70 sum of the trade prices
+    public byte PriceCount;                             // $45
+    public byte UnitsTraded;                            // $E0
+    public byte TradeLine;                              // $EC
+    public byte SavedStoreBuys, SavedFlag43;            // $B21B, $B21C
+    public byte MessageShown;                           // $B326
 }
 
 /// <summary>A view of part of a byte array, for original variables that share memory.</summary>

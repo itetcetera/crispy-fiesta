@@ -93,6 +93,7 @@ public sealed class GameState
     public byte CursorWait = 3;                                 // $B36D
     public byte LevelAuctionTimeWait = 25;                      // $B327
     public byte AuctionTimeReload = 0x10;                       // $9CEF auction time bar reload (operand in the code, kept between auctions)
+    public byte GoodsTimeReload = 0x10;                         // $9B8B goods auction time bar reload (operand in the code, kept between auctions)
     public byte DoMissingEnergyMalus;                           // $B377 (0 = apply)
     public byte AiMode;                                         // $B375 (0 none, 1 turn preview, 2 land auction)
     public byte ProdMax;                                        // $94 after calcPlotsProd

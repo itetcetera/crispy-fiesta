@@ -27,3 +27,11 @@ public sealed record GoodsBarsEvent(int Kind, ushort[] From, ushort[] To) : Game
 public sealed record GoodsRequirementEvent(byte[] Required, byte[] Kinds) : GameEvent;
 /// <summary>Who is buying and who is selling (1 = seller).</summary>
 public sealed record GoodsSelectEvent(int Good, byte[] Sellers) : GameEvent;
+/// <summary>The goods auction's trading starts: the price scale and who sells.</summary>
+public sealed record GoodsAuctionStartedEvent(int Good, ushort PriceStart, ushort PriceEnd, byte[] Sellers, bool StoreSells) : GameEvent;
+/// <summary>One step of the goods auction: heights, the best buyer and seller ($FF the store) and the time bar.</summary>
+public sealed record GoodsAuctionStateEvent(byte[] Positions, byte Buyer, byte Seller, ushort High, ushort Low, byte Time) : GameEvent;
+/// <summary>One unit changes hands at a price; a side of $FF is the store.</summary>
+public sealed record GoodsTradedEvent(byte Buyer, byte Seller, ushort Price) : GameEvent;
+/// <summary>The goods auction is over; the good's new price.</summary>
+public sealed record GoodsAuctionEndedEvent(int Good, ushort Price) : GameEvent;
