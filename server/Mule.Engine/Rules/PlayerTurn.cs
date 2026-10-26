@@ -555,6 +555,7 @@ public static class PlayerTurn
         var g = game.State;
         var v = game.Vbi;
         byte cp = g.CurrentPlayer;
+        bool acted = false;
         while (true)
         {
             if (t.Time == 0) { result.Result = Outcome.TimeOut; yield break; }
@@ -571,6 +572,7 @@ public static class PlayerTurn
                 v.Timers[2] = 8;
                 yield return game.WaitJiffy(6);
                 t.Mask = 0;
+                acted = true;
             }
             if ((Hits(game, t) & 8) != 0 && t.Y >= 0x66 && t.Y < 0x8C)
             {
@@ -578,6 +580,8 @@ public static class PlayerTurn
                 yield return ToTown(game, t);
                 yield break;
             }
+            // The busy loop goes round again in the frame its wait ended in.
+            if (acted) { acted = false; continue; }
             yield return null;
         }
     }
@@ -626,6 +630,7 @@ public static class PlayerTurn
         {
             t.HasMule ^= 1;
         }
+        MapDisplay.DrawCell(g, plot, hideOutput: true);
         game.Emit(new PlotChangedEvent(plot, g.PlotsExp[plot]));
         if (t.HasMule != 0)
         {
@@ -687,7 +692,7 @@ public static class PlayerTurn
                 if (t.WampusTime != 0) t.WampusTime--;
                 v.Timers[1] = t.TimeWait;
             }
-            Wampus(game, t);
+            if (Wampus(game, t)) return;
             Steps(game, t);
         }
     }
@@ -701,9 +706,63 @@ public static class PlayerTurn
         return ((byte)(p | t.Seen.Players), f || t.Seen.Playfield);
     }
 
-    static void Wampus(Game game, Turn t)
+    /// <summary>wampus ($8B8B): on the map, empty-handed, not frozen and the button up, the wampus
+    /// blinks on its mountain; walking onto it while it shows catches it.</summary>
+    /// <returns>Whether it was caught (the blank then holds the machine).</returns>
+    static bool Wampus(Game game, Turn t)
     {
-        // TODO: catching and showing the wampus.
+        var v = game.Vbi;
+        if (t.Mask != 0 || t.Map == 0 || t.Outfit != 0 || v.Button[t.Ctrl] == 0) return false;
+        if (t.X == t.WampusX && (byte)(t.Y + 4) == t.WampusY && t.WampusVisible != 0)
+        {
+            WampusCaught(game, t);
+            return true;
+        }
+        if (t.WampusTime != 0) return false;
+        byte y = (byte)(game.Rng.NextByte() & 3);
+        if (t.WampusVisible == 0 && (t.Latch.Players & 4) == 0)
+        {
+            // It shows, unless the walker is in the mountains.
+            t.WampusVisible = 1;
+            t.WampusTime = (byte)(y + 1);
+            game.Emit(new WampusEvent(true, t.WampusX2, t.WampusY));
+            return false;
+        }
+        t.WampusVisible = 0;
+        t.WampusTime = (byte)(y + 4);
+        game.Emit(new WampusEvent(false, t.WampusX2, t.WampusY));
+        if (game.Rng.Negative()) return false;
+        MoveWampus(game, t);
+        return false;
+    }
+
+
+    /// <summary>wampusCaught ($8C1C): the treasure, then the interrupt itself waits, with the display
+    /// interrupts off, 800 frames or until the button after 168.</summary>
+    static void WampusCaught(Game game, Turn t)
+    {
+        var g = game.State;
+        var v = game.Vbi;
+        t.WampusX = 0;
+        ClearWalker(t);
+        t.WampusTime = 0xFF;
+        t.WampusVisible = 0;
+        ushort bonus = WampusBonus[g.NumRound >> 2];
+        g.PlayersCash[g.CurrentPlayer] += bonus;
+        game.Emit(new WampusCaughtEvent(g.CurrentPlayer, bonus));
+        t.Hpos0 = 0x84;
+        int frame = 0;
+        byte port = (byte)(g.PlayersAi[t.Ctrl] & 3);
+        game.Hold = input =>
+        {
+            frame++;
+            bool done = frame == 800 || (frame > 168 && input[port].Button);
+            if (!done) return true;
+            v.Button[t.Ctrl] = 1;
+            v.Timers[2] = 0x14;
+            Steps(game, t);
+            return false;
+        };
     }
 
     /// <summary>$5625.</summary>
@@ -815,12 +874,9 @@ public static class PlayerTurn
     static void DrawWalker(GameState g, Turn t)
     {
         for (int i = 0; i <= 0x1C; i++) t.Pm0[(byte)(t.Y - 3 + i)] = 0;
-        var frames = WalkerFrames(g.PlayersRace[g.CurrentPlayer]);
-        for (int k = 1; k < 8; k++) t.Pm0[(byte)(t.Y + k)] = frames[(t.Anim + k) & 0x7F];
+        int frames = g.CurrentPlayer * 0x80;
+        for (int k = 1; k < 8; k++) t.Pm0[(byte)(t.Y + k)] = g.WalkerMap[frames + (byte)(t.Anim + k)];
     }
-
-    // TODO: the snapshot holds only the Mechtron and Bonzoid frames; the others need the disk image.
-    static byte[] WalkerFrames(byte race) => MapGraphics.WalkerMap((Race)race) ?? MapGraphics.MechtronMap;
 
     /// <summary>sub_4C61 on the walker's page.</summary>
     static void ClearWalker(Turn t) => Array.Clear(t.Pm0);

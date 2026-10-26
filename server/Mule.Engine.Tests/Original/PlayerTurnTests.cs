@@ -14,7 +14,8 @@ public class PlayerTurnTests
     public PlayerTurnTests(ITestOutputHelper o) => _out = o;
 
     static readonly bool Debug = Environment.GetEnvironmentVariable("TURN_DEBUG") != null;
-    static readonly HashSet<ushort> WampusRandomPcs = new() { 0x8BD6, 0x8C11 };
+    // The wampus reads RANDOM inside the vertical blank: its blinking and moving (random_0_A).
+    static readonly HashSet<ushort> WampusRandomPcs = new() { 0x8BD6, 0x8C11, 0x119A };
 
     sealed record Scenario(GameState G, int Seed);
 
@@ -43,10 +44,10 @@ public class PlayerTurnTests
         static readonly int[] Top = { 10, 16, 22, 28 }, Bottom = { 10, 15, 20, 25, 27, 29 };
         static readonly byte[] Directions = { 0x0E, 0x0D, 0x0B, 0x07, 0x0A, 0x06, 0x09, 0x05 };
 
-        public (bool button, byte stick) Next(byte[] ram)
+        public (bool button, byte stick) Next(byte[] ram, bool starting)
         {
-            byte x = ram[0x9F], y = ram[0xA3], c1 = ram[0xC1], ad = ram[0xAD];
-            if (c1 == 0xFF || (ad != 0 && ram[0xD3] > 101))
+            byte x = ram[0x9F], y = ram[0xA3], ad = ram[0xAD];
+            if (starting)
             {
                 // Waiting to start: press after a little while.
                 if (_pressAt < 0) _pressAt = _r.Next(5, 120);
@@ -151,6 +152,7 @@ public class PlayerTurnTests
         var events = new List<string>();
         var inputs = new List<(bool, byte)[]>();
         long vbi = 0;
+        bool starting = false;
         string last = "";
         var r = m.Ram;
         m.M.AfterStep = c =>
@@ -172,15 +174,15 @@ public class PlayerTurnTests
                         var inp = new (bool, byte)[4];
                         for (int p = 0; p < 4; p++)
                         {
-                            inp[p] = p == r[0xAC] ? agents[p].Next(r) : (false, (byte)15);
+                            inp[p] = p == r[0xAC] ? agents[p].Next(r, starting) : (false, (byte)15);
                             m.M.Buttons[p] = inp[p].Item1;
                             m.M.Sticks[p] = inp[p].Item2;
                         }
                         inputs.Add(inp);
                         break;
                     }
-                case 0x6645: events.Add($"{vbi} player {r[0xB328 + r[0xB378]]}"); break;
-                case 0x6741: events.Add($"{vbi} pressed"); break;
+                case 0x6645: events.Add($"{vbi} player {r[0xB328 + r[0xB378]]}"); starting = true; break;
+                case 0x6741: events.Add($"{vbi} pressed"); starting = false; break;
                 case 0x66CB: events.Add($"{vbi} event"); break;
                 case 0x66CE: if (Debug) events.Add($"{vbi} evdone {r[0xBC]}"); break;
                 case 0x66F5: if (Debug && events[^1].Contains("evdone")) events.Add($"{vbi} poll"); break;
@@ -193,7 +195,8 @@ public class PlayerTurnTests
                 case 0x4A32: events.Add($"{vbi} msg {c.X}"); break;
             }
         };
-        m.M.CallRoutine(OriginalGame.Sym("playersTurn"), 60_000);
+        try { m.M.CallRoutine(OriginalGame.Sym("playersTurn"), 60_000); }
+        catch (TimeoutException) { if (Debug) Console.WriteLine(string.Join("\n", events.SkipWhile(e => long.Parse(e[..e.IndexOf(' ')]) < 1700).Take(400))); throw; }
         events.Add($"{vbi} done");
         return new Run(events, StateMapper.FromRam(m.Ram), inputs, rng.Position, timers);
     }
@@ -203,6 +206,8 @@ public class PlayerTurnTests
         var state = StateMapper.FromRam(Clone(s.G));
         var rng = new ScriptedRandom(s.Seed);
         var game = new Game(state, rng);
+        // Frames as the original's blanks count them: a held blank is one.
+        long VFrame() => game.Frame - game.HeldFrames;
         game.Vbi.RtClock = timers[0];
         for (int i = 0; i < 4; i++) game.Vbi.Timers[i] = timers[i + 1];
         var events = new List<string>();
@@ -210,22 +215,22 @@ public class PlayerTurnTests
         game.Trace = e =>
         {
             if (e.StartsWith("player") || e == "pressed" || e == "event" || e == "food" || e == "enter" || e == "exit" || e == "gamble" || e == "timeout" || e == "end")
-                events.Add($"{game.Frame} {e}");
+                events.Add($"{VFrame()} {e}");
         };
         if (original != null)
         {
             var at = original.Select(e => (long.Parse(e[..e.IndexOf(' ')]), e[(e.IndexOf(' ') + 1)..])).ToList();
             // The original's events from the start of the turn of the player now starting.
-            IEnumerable<(long, string)> FromPlayer() => at.Skip(at.FindLastIndex(e => e.Item1 <= game.Frame && e.Item2.StartsWith("player")));
+            IEnumerable<(long, string)> FromPlayer() => at.Skip(at.FindLastIndex(e => e.Item1 <= VFrame() && e.Item2.StartsWith("player")));
             game.Race = q =>
             {
                 bool r = q switch
                 {
-                    "message first" => at.Any(e => e.Item1 == game.Frame && e.Item2.StartsWith("msg")),
-                    "title quick" => FromPlayer().First(e => e.Item2 == "event").Item1 == game.Frame + 6,
-                    "player late" => game.Frame > 0 && FromPlayer().Skip(1).TakeWhile(e => e.Item2 != "event").FirstOrDefault(e => e.Item2.StartsWith("w ")).Item1 > game.Frame,
+                    "message first" => at.Any(e => e.Item1 == VFrame() && e.Item2.StartsWith("msg")),
+                    "title quick" => FromPlayer().First(e => e.Item2 == "event").Item1 == VFrame() + 6,
+                    "player late" => VFrame() > 0 && FromPlayer().Skip(1).TakeWhile(e => e.Item2 != "event").FirstOrDefault(e => e.Item2.StartsWith("w ")).Item1 > VFrame(),
                     // The map screen comes 25 frames after sub_5227 starts, unless its first drawing ran late.
-                    "map late" => at.First(e => e.Item1 > game.Frame && e.Item2.StartsWith("w ") && e.Item2.Split(' ')[6] == "1").Item1 > game.Frame + 25,
+                    "map late" => at.First(e => e.Item1 > VFrame() && e.Item2.StartsWith("w ") && e.Item2.Split(' ')[6] == "1").Item1 > VFrame() + 25,
                     _ => false,
                 };
                 if (r) Races++;
@@ -238,28 +243,32 @@ public class PlayerTurnTests
         int f = 0;
         while (!game.Finished)
         {
-            var inp = f < inputs.Count ? inputs[f] : Enumerable.Repeat((false, (byte)15), 4).ToArray();
+            // A held blank reads the controls as they were when it started (the original's inputs are
+            // set at each blank).
+            bool held = game.Hold != null;
+            int at = held ? f - 1 : f;
+            var inp = at < inputs.Count ? inputs[at] : Enumerable.Repeat((false, (byte)15), 4).ToArray();
             for (int p = 0; p < 4; p++) input[p] = new PlayerInput(inp[p].Item1, inp[p].Item2);
             int seen = game.Events.Count;
             game.RunFrame(input);
-            f++;
+            if (!held) f++;
             for (int i = seen; i < game.Events.Count; i++)
-                if (game.Events[i] is TurnMessageEvent tm && tm.Code is > 0 and < 30 && tm.Text == "") events.Add($"{game.Frame} msg {tm.Code}");
+                if (game.Events[i] is TurnMessageEvent tm && tm.Code is > 0 and < 30 && tm.Text == "") events.Add($"{VFrame()} msg {tm.Code}");
             turn = game.Turn;
-            if (turn != null && Environment.GetEnvironmentVariable("TURN_FRAME") is string tf0 && game.Frame == long.Parse(tf0))
+            if (turn != null && Environment.GetEnvironmentVariable("TURN_FRAME") is string tf0 && VFrame() == long.Parse(tf0))
                 for (int row = 0; row < 20; row++) File.AppendAllText("/tmp/claude-0/frame_p.txt", $"S{row} " + string.Join(" ", Enumerable.Range(0, 20).Select(i => state.MapScreen[row * 20 + i].ToString("X2"))) + "\n");
-            if (turn != null && Environment.GetEnvironmentVariable("TURN_FRAME") is string tf && game.Frame == long.Parse(tf))
+            if (turn != null && Environment.GetEnvironmentVariable("TURN_FRAME") is string tf && VFrame() == long.Parse(tf))
                 for (int l = 8; l < 248; l++)
                     if (turn.Pm0[l] != 0)
                         File.AppendAllText("/tmp/claude-0/frame_p.txt", $"L{l} p0 {turn.Pm0[l]:X2} h {turn.Hpos0:X2} p2 {state.SprMount[l]:X2} p3 {state.SprRiver[l]:X2} rx {string.Join(",", state.RiverStoreX.Select(b => b.ToString("X2")))}\n");
             if (turn != null && !game.Finished)
             {
                 string w = $"w {turn.X:X2} {turn.Y:X2} {turn.Time} {turn.HasMule} {turn.Outfit} {turn.Map}" + (turn.HasMule != 0 ? $" m {turn.MuleX:X2} {turn.MuleY:X2}" : "") + (turn.Map != 0 ? Collisions(state, turn) : "") + (Debug ? $" a {turn.Phase:X2} s {game.Vbi.Sound:X2}" : "");
-                if (w != last) { events.Add($"{game.Frame} {w}"); last = w; }
+                if (w != last) { events.Add($"{VFrame()} {w}"); last = w; }
             }
-            if (game.Frame > 60_000) throw new TimeoutException();
+            if (VFrame() > 60_000) throw new TimeoutException();
         }
-        events.Add($"{game.Frame} done");
+        events.Add($"{VFrame()} done");
         return new Run(events, state, inputs, rng.Position, timers);
     }
 

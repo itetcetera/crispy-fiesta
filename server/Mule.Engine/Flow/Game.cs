@@ -32,11 +32,29 @@ public sealed class Game
 
     public bool Finished => _main == null || _main.Done;
 
+    /// <summary>A vertical blank that holds the machine for frames (the wampus catch, $8C1C, waits
+    /// inside the interrupt): called each frame with the controls, true while it still holds. On its
+    /// last frame it finishes the interrupt's work and the main program runs.</summary>
+    public delegate bool HoldStep(ReadOnlySpan<PlayerInput> input);
+    public HoldStep? Hold;
+    /// <summary>Frames spent inside a held vertical blank (no clock, no timers, no main program).</summary>
+    public long HeldFrames { get; private set; }
+
     /// <summary>Runs one frame: the vertical blank with this frame's controls, then the main program.</summary>
     public void RunFrame(ReadOnlySpan<PlayerInput> input)
     {
         Frame++;
-        Vbi.Tick(State, input);
+        if (Hold != null)
+        {
+            HeldFrames++;
+            if (Hold(input)) return;
+            Hold = null;
+        }
+        else
+        {
+            Vbi.Tick(State, input);
+            if (Hold != null) return;
+        }
         _main?.Step();
     }
 

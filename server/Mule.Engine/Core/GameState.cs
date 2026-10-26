@@ -52,6 +52,8 @@ public sealed class GameState
     public byte OldRiverStoreX, OldMountainX;                   // $B249, $B24A: the first quarter-row's, while the town screen uses it
     public readonly byte[] SprMount = new byte[256];            // $B900 mountain sprite rows (player 2 on the map)
     public readonly byte[] SprRiver = new byte[256];            // $BA00 river and store sprite rows (player 3 on the map)
+    public readonly byte[] WalkerTown = new byte[4 * 0x110];      // $09C0 each player's walking frames in town (loaded with the species)
+    public readonly byte[] WalkerMap = new byte[4 * 0x80];        // $0E00 each player's walking frames on the map
     public readonly byte[] MapScreen = new byte[400];           // $B528 the map's characters (they decide the walker's collisions)
 
     // Per player, per job / good

@@ -22,6 +22,8 @@ public static class StateMapper
         new("riverStoreX", 0xB235, g => g.RiverStoreX),
         new("sprMount", 0xB900, g => g.SprMount),
         new("sprRiver", 0xBA00, g => g.SprRiver),
+        new("walkerTown", 0x09C0, g => g.WalkerTown),
+        new("walkerMap", 0x0E00, g => g.WalkerMap),
         new("mapScreen", 0xB528, g => g.MapScreen),
         new("goodsPlayersNb", 0xB1C2, g => g.GoodsPlayersNb),
         new("expsPlayersNb", 0xB1D6, g => g.ExpsPlayersNb),

@@ -50,3 +50,9 @@ public sealed record MuleRanAwayEvent(int Player) : GameEvent;
 public sealed record PlotChangedEvent(int Plot, int Exp) : GameEvent;
 public sealed record AssayEvent(int Plot, int Level) : GameEvent;
 public sealed record GamblingEvent(int Player, int Won) : GameEvent;
+
+/// <summary>The wampus shows on (or leaves) its mountain at x, y.</summary>
+public sealed record WampusEvent(bool Shown, byte X, byte Y) : GameEvent;
+
+/// <summary>A player caught the wampus and got the bonus.</summary>
+public sealed record WampusCaughtEvent(byte Player, ushort Bonus) : GameEvent;

@@ -269,7 +269,7 @@ public class GoodsAuctionTests
             var p = RunPort(s, clock);
             string ctx = $"seed {seed} good {s.Good} level {s.G.Level} round {s.G.NumRound}";
             _out.WriteLine($"{ctx}: frames {o.Frames} vs {p.Frames}; {string.Join(", ", o.Events)} | {string.Join(", ", p.Events)}");
-            var diff = StateMapper.Diff(o.End, p.End);
+            var diff = StateMapper.Diff(o.End, p.End, "mapScreen"); // the auction screen reuses the map's memory; drawMap redraws it
             Assert.True(diff.Count == 0, $"{ctx}: " + string.Join("; ", diff.Take(10)));
             Assert.Equal(o.Pos, p.Pos);
             Assert.Equal(o.Mask, p.Mask);
@@ -309,7 +309,7 @@ public class GoodsAuctionTests
             if (!o.Events.Any(e => e.EndsWith("select"))) called++;
             if (o.Events.Any(e => e.EndsWith("no commodity"))) none++;
             switches += o.Events.Count(e => e.Contains("switch"));
-            var diff = StateMapper.Diff(o.End, p.End);
+            var diff = StateMapper.Diff(o.End, p.End, "mapScreen"); // the auction screen reuses the map's memory; drawMap redraws it
             Assert.True(diff.Count == 0, $"{ctx}: " + string.Join("; ", diff.Take(10)));
             Assert.Equal(o.RandomReads, p.RandomReads);
             Assert.Equal(o.Seller, p.Seller);
@@ -427,7 +427,7 @@ public class GoodsAuctionTests
                 }
             }
             Assert.True(oe.Count == pe.Count, $"{ctx}: {oe.Count} events in the original, {pe.Count} in the port; last {oe.LastOrDefault()} | {pe.LastOrDefault()}");
-            var diff = StateMapper.Diff(o.End, p.End);
+            var diff = StateMapper.Diff(o.End, p.End, "mapScreen"); // the auction screen reuses the map's memory; drawMap redraws it
             Assert.True(diff.Count == 0, $"{ctx}: " + string.Join("; ", diff.Take(10)));
             Assert.Equal(o.RandomReads, p.RandomReads);
             Assert.Equal(o.Pos, p.Pos);
