@@ -36,6 +36,9 @@ public static class StateMapper
         new("playersTurnTimeWait", 0xB370, g => g.PlayersTurnTimeWait),
         new("outfitsPriceL", 0xB2B1, g => g.OutfitsPrice),
         new("turnEventsHappened", 0xB34A, g => g.TurnEventsHappened),
+        new("goodsShortage", 0xB19D, g => g.GoodsShortage),
+        new("goodsQuality", 0xB20C, g => g.GoodsQuality),
+        new("playersPlotsQuality", 0xB379, g => g.PlayersPlotsQuality),
     };
 
     static readonly WordField[] Words =
@@ -43,6 +46,7 @@ public static class StateMapper
         new("playersCash", 0xB2BA, g => g.PlayersCash),
         new("goodsPrice", 0xB2F1, g => g.GoodsPrice),
         new("goodsPriceLimit", 0x3277, g => g.GoodsPriceLimit),
+        new("goodsPriceTemp", 0xB206, g => g.GoodsPriceTemp),
     };
 
     static readonly ScalarField[] Scalars =
@@ -55,6 +59,7 @@ public static class StateMapper
         new("mulePriceL", 0xB2B9, g => (byte)g.MulePrice, (g, v) => g.MulePrice = (ushort)((g.MulePrice & 0xFF00) | v)),
         new("mulePriceH", 0xB367, g => (byte)(g.MulePrice >> 8), (g, v) => g.MulePrice = (ushort)((g.MulePrice & 0xFF) | (v << 8))),
         new("prodMax", 0x0094, g => g.ProdMax, (g, v) => g.ProdMax = v),
+        new("maxIndexCpu", 0x00D2, g => g.MaxIndexCpu, (g, v) => g.MaxIndexCpu = v),
     };
 
     public static void ToRam(GameState g, Cpu6502 cpu) => ToRam(g, cpu.Mem);

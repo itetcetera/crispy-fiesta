@@ -51,7 +51,7 @@ public sealed class GameState
     public readonly byte[] RiverStoreX = new byte[20];          // $B235 river/store x per quarter-row
 
     // Per player, per job / good
-    public readonly byte[] GoodsShortage = new byte[37];        // $B19D
+    public readonly byte[] GoodsShortage = new byte[3];         // $B19D food, energy, smithore shortage flags
     public readonly byte[] GoodsPlayersNb = new byte[20];       // $B1C2 [good*4+player]
     public readonly byte[] ExpsPlayersNb = new byte[20];        // $B1D6 [(job-1)*4+player]
     public readonly byte[] GoodsPlayersProd = new byte[20];     // $B1EA [(job-1)*4+player]
@@ -69,6 +69,11 @@ public sealed class GameState
     public byte FoodReq = 3;                                    // $B376
     public ushort MulePrice = 100;                              // $B2B9/$B367
     public readonly byte[] OutfitsPrice = new byte[5];          // $B2B1 (index = job)
+
+    // CPU evaluation
+    public readonly byte[] GoodsQuality = new byte[6];          // $B20C 16-bit sums while computing, then one byte per good (0-31, 32 = round-1 pick)
+    public readonly ushort[] GoodsPriceTemp = new ushort[3];    // $B206 saved food, energy, smithore prices
+    public readonly byte[] PlayersPlotsQuality = new byte[4 * Plots]; // $B379 [player*45+plot]
 
     // Round flow
     public readonly byte[] OrdersPlayer = { 0, 1, 2, 3 };       // $B328 ranking, 1st first

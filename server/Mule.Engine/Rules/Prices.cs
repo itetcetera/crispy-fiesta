@@ -15,6 +15,21 @@ public static class Prices
         CalcSmithoreAndCrystitePriceFromWhen(g, rng, req);
     }
 
+    /// <summary>calcGoodsPriceFromWhen ($34EC): prices from the projected stock in goodsFuturNb, then
+    /// goodsFuturNb minus what the colony needs (floor 0). Used by the CPU's look-ahead.</summary>
+    public static void CalcGoodsPriceFromWhen(GameState g, IRandomSource rng)
+    {
+        Production.InitVarsFromMaps(g);
+        CalcFoodPriceFromWhen(g);
+        CalcEnergyPriceFromWhen(g);
+        CalcSmithoreAndCrystitePriceFromWhen(g, rng, 5);
+        for (int y = 2; y >= 0; y--)
+        {
+            int left = g.GoodsFuturNb[y] - g.GoodsFuturReq[y];
+            g.GoodsFuturNb[y] = left < 0 ? (byte)0 : (byte)left;
+        }
+    }
+
     /// <summary>calcFoodPriceFromNow ($3134).</summary>
     public static void CalcFoodPriceFromNow(GameState g)
     {
