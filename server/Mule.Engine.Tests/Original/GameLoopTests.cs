@@ -87,15 +87,26 @@ public class GameLoopTests
         var trading = new List<List<string>>();
         string lastW = "";
         temps = new(); clocks = new();
-        long vbi = 0;
-        ushort prevPc = 0;
+        long vbi = 0, lastPoint = 0;
+        ushort prevPc = 0, prevMain = 0;
+        var ring = new ushort[64]; int ringAt = 0;
         m.M.AfterStep = c =>
         {
             bool afterRti = m.M.Read(prevPc) == 0x40;
+            if (!m.M.InVblank) prevMain = c.PC;
+            ring[ringAt++ & 63] = c.PC;
             prevPc = c.PC;
             if (afterRti) return;
             if (c.PC == 0x5BB5)
             {
+                // The screen saver (after $80 x 256 frames without a button held, $5C98) is left out
+                // of the port for now (asked Marcus 2026-10-27): as if someone held a button now and then.
+                m.Ram[0x4D] = 0;
+                if (Progress != null && vbi - lastPoint > 20_000)
+                {
+                    File.AppendAllText(Progress, $"stuck at {prevMain:X4}, frame {vbi}, S {c.S:X2}\n");
+                    throw new TimeoutException($"original stuck at {prevMain:X4}");
+                }
                 if (inTurns)
                 {
                     string w = $"w {m.Ram[0xD3]} {m.Ram[0xAD]}";
@@ -142,7 +153,7 @@ public class GameLoopTests
             if (c.PC == 0x6F19) { message = Decode(m.Ram); messages.Add(message); }
             if (c.PC == 0x6F60) ends.Add(StateMapper.FromRam(m.Ram));
             if (c.PC == 0x7D35 && events[^1].Item2 == "meteorite") return; // the fifteen waits after the fall
-            if (Checkpoints.TryGetValue(c.PC, out var what)) { events.Add((vbi, what)); clocks.Add($"{what} {m.Ram[0x14]} {m.Ram[0xC3]} {m.Ram[0xC4]} {m.Ram[0xC5]} {m.Ram[0xC6]}"); temps.Add($"{what}:{string.Join(",", m.Ram.AsSpan(0xB42D, 45).ToArray())}"); }
+            if (Checkpoints.TryGetValue(c.PC, out var what)) { lastPoint = vbi; if (Progress != null && what is "round" or "score end") File.AppendAllText(Progress, $"original {what} {vbi} round {m.Ram[0xB1]}\n"); events.Add((vbi, what)); clocks.Add($"{what} {m.Ram[0x14]} {m.Ram[0xC3]} {m.Ram[0xC4]} {m.Ram[0xC5]} {m.Ram[0xC6]}"); temps.Add($"{what}:{string.Join(",", m.Ram.AsSpan(0xB42D, 45).ToArray())}"); }
         };
         // The round ends at the score: return there instead of going on to the next round.
         if (!whole) m.Ram[0x4845] = 0x60;
@@ -153,7 +164,12 @@ public class GameLoopTests
             m.Ram[0x484F] = 0xA2; m.Ram[0x4850] = s; m.Ram[0x4851] = 0x9A; m.Ram[0x4852] = 0x60; // LDX #s, TXS, RTS
             m.Ram[0x8ADE] = 0x4C; m.Ram[0x8ADF] = 0x4F; m.Ram[0x8AE0] = 0x48;                   // JMP $484F
         }
-        m.M.CallRoutine(0x478A, whole ? 4_000_000 : 400_000);
+        try { m.M.CallRoutine(0x478A, whole ? 4_000_000 : 400_000); }
+        catch (TimeoutException) when (Progress != null)
+        {
+            File.AppendAllText(Progress, $"timeout: vbi {vbi}, PC {m.M.Cpu.PC:X4}, S {m.M.Cpu.S:X2}, last {string.Join(" ", Enumerable.Range(0, 64).Select(k => ring[(ringAt + k) & 63].ToString("X4")))}\n");
+            throw;
+        }
         return new Run(events, StateMapper.FromRam(m.Ram), rng.Position, timers) { Message = message, Turn = turn, Auction = auction, Trading = trading, Messages = messages, Ends = ends };
     }
 
@@ -201,6 +217,7 @@ public class GameLoopTests
 
     static readonly List<string> Thinks = new();
     static readonly List<string> Kinds = new();
+    static readonly string? Progress = Environment.GetEnvironmentVariable("GAME_PROGRESS");
     static List<string> temps = new(), ptemps = new(), clocks = new(), pclocks = new();
 
     static Run RunPort(GameState g, int seed, byte[] timers, List<(long Frame, string What)>? original, List<(long Frame, string What)>? at = null, Run? orig = null, bool whole = false)
@@ -242,6 +259,7 @@ public class GameLoopTests
         ptemps = new(); pclocks = new();
         game.Trace = e =>
         {
+            if (Progress != null && e is "round" or "score end") File.AppendAllText(Progress, $"port {e} {VFrame()} round {state.NumRound}\n");
             if (e == "score wait") messages.Add(score.Message.TrimEnd());
             if (e == "score end") { var copy = new Cpu6502(); StateMapper.ToRam(state, copy); ends.Add(StateMapper.FromRam(copy)); }
             if (names.Contains(e)) { events.Add((VFrame(), e)); pclocks.Add($"{e} {game.Vbi.RtClock} {game.Vbi.Timers[0]} {game.Vbi.Timers[1]} {game.Vbi.Timers[2]} {game.Vbi.Timers[3]}"); ptemps.Add($"{e}:{string.Join(",", state.PlotsTemp3)}"); }
