@@ -195,6 +195,7 @@ public static class RoundEventScreens
     public static IEnumerable TransportShipLand(Game game)
     {
         var g = game.State;
+        game.Trace?.Invoke("ship land");
         game.Emit(new TitleEvent("TRANSPORT SHIP"));
         g.AiMode = 0; // sub_76AF: $B375 tells the handler which ship
         yield return ShipLand(game, false);
@@ -229,7 +230,7 @@ public static class RoundEventScreens
 
     /// <summary>anipShipTakeOff ($7674): back up the nine steps every eight frames, then away left one
     /// unit every eight frames.</summary>
-    static IEnumerable ShipTakeOff(Game game, bool pirates)
+    internal static IEnumerable ShipTakeOff(Game game, bool pirates)
     {
         var v = game.Vbi;
         byte x0 = 0x7B, step = 0, count = 0x0A, wait = 0x0A;

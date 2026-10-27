@@ -7,6 +7,9 @@ namespace Mule.Engine.Rules;
 /// <summary>A plot's production count goes up during the production animation.</summary>
 public sealed record ProductionShownEvent(int Plot, int Units) : GameEvent;
 
+/// <summary>The game is over: after the last round, or when the colony failed.</summary>
+public sealed record GameOverEvent(bool ColonyFailed, byte Rating) : GameEvent;
+
 /// <summary>A round starts.</summary>
 public sealed record RoundStartedEvent(int Round) : GameEvent;
 
@@ -26,6 +29,32 @@ public static class GameLoop
 
     // Frames initVarsFromMaps and calcGoodsPriceFromNow run (measured on the original).
     const int PricesFrames = 1;
+
+    /// <summary>A whole game after the players have chosen ($4758 on): the landing, the rounds, and the
+    /// end. <paramref name="score"/> holds the last score's outcome (a failed colony ends the game early).</summary>
+    public static IEnumerable Play(Game game, ScoreScreen.Outcome score)
+    {
+        yield return Opening(game);
+        yield return Rounds(game, score);
+        game.Trace?.Invoke("game over");
+        game.Emit(new GameOverEvent(score.Failed, game.State.SuccessScore));
+    }
+
+    /// <summary>$4758-$4787: the ship lands the colonists, the first score is shown, and it leaves.</summary>
+    public static IEnumerable Opening(Game game)
+    {
+        var g = game.State;
+        yield return DrawMap(game, "opening map");
+        game.Emit(new MessageEvent("YOU'RE LANDING ON THE PLANET IRATA."));
+        yield return RoundEventScreens.TransportShipLand(game);
+        game.Trace?.Invoke("opening score");
+        yield return ScoreScreen.CalcAndDraw(game, new ScoreScreen.Outcome());
+        yield return DrawMap(game, "opening leave");
+        game.Emit(new MessageEvent($"  THE SHIP WILL BE BACK IN {g.NbRounds} MONTHS."));
+        game.Trace?.Invoke("takeoff");
+        yield return RoundEventScreens.ShipTakeOff(game, false);
+        game.Trace?.Invoke("opening done");
+    }
 
     /// <summary>The rounds ($478A-$484C): until the last one, or until the colony fails (addMessageFailure
     /// $8ACC, which goes back to the start once the score has been shown).</summary>

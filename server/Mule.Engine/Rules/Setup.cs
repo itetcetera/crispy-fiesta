@@ -22,7 +22,7 @@ public static class Setup
         var g = new GameState();
         for (int p = 0; p < GameState.Players; p++)
         {
-            g.PlayersAi[p] = seats[p].Cpu ? (byte)0xFF : (byte)8;
+            g.PlayersAi[p] = seats[p].Cpu ? (byte)0xFF : (byte)(8 + p); // joystick p
             g.PlayersRace[p] = (byte)seats[p].Race;
             g.PlayersColor[p] = seats[p].Color;
             // The disk loads these with the species; the snapshot holds only the Mechtron's and the Bonzoid's.
