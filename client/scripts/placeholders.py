@@ -31,14 +31,14 @@ ENTRIES = [
     ("wampus", 24, 24, "Players", "The mountain wampus, when it shows.", "#e05aa0"),
     ("town-street", 640, 40, "Town", "The town's street, between the two rows of buildings.", "#c9a46a"),
     ("town-ground", 640, 480, "Town", "The town screen behind everything.", "#3a2a1a"),
-    ("bldg-crystite", 88, 80, "Town", "The crystite outfitter (top row, first).", "#5fd0d0"),
-    ("bldg-smithore", 88, 80, "Town", "The smithore outfitter (top row, second).", "#a0a0b0"),
-    ("bldg-energy", 88, 80, "Town", "The energy outfitter (top row, third).", "#f2d24b"),
-    ("bldg-food", 88, 80, "Town", "The food outfitter (top row, last).", "#7cc35a"),
-    ("bldg-assay", 88, 80, "Town", "The assay office (bottom row, first).", "#d08050"),
-    ("bldg-land", 80, 80, "Town", "The land office (bottom row, second).", "#c0a0e0"),
-    ("bldg-pub", 80, 80, "Town", "The pub (bottom row, third).", "#e07070"),
-    ("bldg-corral", 120, 80, "Town", "The M.U.L.E. corral (bottom row, right).", "#a07040"),
+    ("bldg-crystite", 88, 120, "Town", "The crystite outfitter (top row, first).", "#5fd0d0"),
+    ("bldg-smithore", 88, 120, "Town", "The smithore outfitter (top row, second).", "#a0a0b0"),
+    ("bldg-energy", 88, 120, "Town", "The energy outfitter (top row, third).", "#f2d24b"),
+    ("bldg-food", 88, 120, "Town", "The food outfitter (top row, last).", "#7cc35a"),
+    ("bldg-assay", 88, 112, "Town", "The assay office (bottom row, first).", "#d08050"),
+    ("bldg-land", 80, 112, "Town", "The land office (bottom row, second).", "#c0a0e0"),
+    ("bldg-pub", 80, 112, "Town", "The pub (bottom row, third).", "#e07070"),
+    ("bldg-corral", 120, 112, "Town", "The M.U.L.E. corral (bottom row, right).", "#a07040"),
     ("ship", 64, 48, "Events", "The colony ship, landing and taking off.", "#e0e0f0"),
     ("pirate-ship", 64, 48, "Events", "The pirate ship.", "#303030"),
     ("pest", 24, 24, "Events", "The space pest that eats a food plot.", "#60c040"),
@@ -58,7 +58,7 @@ def svg(key, w, h, colour):
     label = key.replace("walker-", "").replace("portrait-", "").replace("icon-", "").replace("bldg-", "").replace("good-", "")
     size = max(6, min(14, int(w / max(4, len(label)) * 1.6), int(h * 0.4)))
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" viewBox="0 0 {w} {h}">'
-            f'<rect x="1.5" y="1.5" width="{w - 3}" height="{h - 3}" rx="{min(w, h) / 6:.1f}" fill="{colour}" '
+            f'<rect x="1.5" y="1.5" width="{w - 3}" height="{h - 3}" rx="{min(12, min(w, h) / 6):.1f}" fill="{colour}" '
             f'stroke="#111" stroke-width="3"/>'
             f'<text x="{w / 2}" y="{h / 2}" font-family="Comic Sans MS, Chalkboard, sans-serif" font-size="{size}" '
             f'font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="#111">{label}</text></svg>\n')

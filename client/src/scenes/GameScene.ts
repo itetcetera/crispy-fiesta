@@ -4,7 +4,7 @@ import Phaser from "phaser";
 import { portraitKey, queueAssets, walkerKey, type AssetEntry } from "../assets";
 import {
   COLUMNS, HEIGHT, PLOT_H, PLOT_W, PLOTS, RIVER, STORE, STREET_BOTTOM, STREET_TOP, TOWN_BOTTOM, TOWN_TOP, WIDTH,
-  atariColor, css, doorX, plotX, plotY, px, py, quarterY,
+  atariColor, doorX, textColor, townY, plotX, plotY, px, py, quarterY,
 } from "../geometry";
 import { SPECIES } from "../protocol";
 import type { Model } from "../state";
@@ -96,6 +96,10 @@ export class GameScene extends Phaser.Scene {
     return atariColor(this.v("PlayersColor", p) || [196, 132, 52, 84][p]);
   }
 
+  private textColor(p: number) {
+    return textColor(this.v("PlayersColor", p) || [196, 132, 52, 84][p]);
+  }
+
   private race(p: number) {
     return SPECIES[this.v("PlayersRace", p)] ?? "Humanoid";
   }
@@ -170,42 +174,42 @@ export class GameScene extends Phaser.Scene {
     const step = m.roundStep;
     if (step && ROUND_EVENT_ART[step.kind]) {
       const key = ROUND_EVENT_ART[step.kind];
-      if (step.kind === "AcidRain") this.img(key, px(step.y || 56), py(plotY(step.x * COLUMNS)));
+      if (step.kind === "AcidRain") this.img(key, px(step.x), py(plotY(step.step * COLUMNS)));
       else if (step.kind === "Sunspots") this.img(key, WIDTH - 110, 4);
       else if (step.kind === "FireInStore") this.img(key, px(plotX(STORE)) + 8, py(plotY(STORE)) + 8);
       else if (step.x) this.img(key, px(step.x), py(step.y || plotY(STORE)));
     }
-    if (m.inTurn && this.v("turnMap") === 1) this.walker(1);
+    if (m.inTurn && this.v("turnMap") === 1) this.walker(1, py);
     const w = m.s["wampus"];
     if (w && w.length === 2) this.img("wampus", px(w[0]), py(w[1]));
     this.say(m.title, WIDTH / 2, 6, 22, "#fff", 0.5);
   }
 
-  private walker(scale: number) {
+  private walker(scale: number, toY: (y: number) => number) {
     const cp = this.v("CurrentPlayer");
     if (cp > 3) return;
     const x = this.v("turnX"), y = this.v("turnY");
     const tint = this.color(cp);
     if (this.v("turnHasMule")) {
       const mx = this.v("turnMuleX"), my = this.v("turnMuleY");
-      this.img("mule", px(mx) + 16 * scale, py(my) + 16 * scale, scale, { ox: 0.5, oy: 1, flip: this.faces("mule", mx) });
+      this.img("mule", px(mx) + 16 * scale, toY(my) + 16 * scale, scale, { ox: 0.5, oy: 1, flip: this.faces("mule", mx) });
     }
-    this.img(walkerKey(this.race(cp)), px(x) + 16 * scale, py(y) + 16 * scale, scale, { ox: 0.5, oy: 1, tint, flip: this.faces("walker", x) });
+    this.img(walkerKey(this.race(cp)), px(x) + 16 * scale, toY(y) + 16 * scale, scale, { ox: 0.5, oy: 1, tint, flip: this.faces("walker", x) });
   }
 
   private town() {
     const m = this.d.model;
     this.img("town-ground", 0, 0);
-    this.img("town-street", 0, py(STREET_TOP));
+    this.img("town-street", 0, townY(STREET_TOP));
     for (const b of TOWN_TOP) {
       const c = px(doorX((b.from + b.to) / 2)) + 8;
-      this.img(b.key, c, py(STREET_TOP), 1, { ox: 0.5, oy: 1 });
+      this.img(b.key, c, townY(STREET_TOP), 1, { ox: 0.5, oy: 1 });
     }
     for (const b of TOWN_BOTTOM) {
       const c = px(doorX((b.from + b.to) / 2)) + 8;
-      this.img(b.key, c, py(STREET_BOTTOM), 1, { ox: 0.5, oy: 0 });
+      this.img(b.key, c, townY(STREET_BOTTOM), 1, { ox: 0.5, oy: 0 });
     }
-    if (m.inTurn) this.walker(2);
+    if (m.inTurn) this.walker(2, townY);
   }
 
   private auction(land: boolean) {
@@ -218,8 +222,8 @@ export class GameScene extends Phaser.Scene {
     const topLine = py(0x54), startLine = py(0x9b);
     this.g.lineStyle(2, 0x8080ff).lineBetween(0, topLine, WIDTH, topLine).lineBetween(0, startLine, WIDTH, startLine);
     if (!land) {
-      this.say(`STORE SELLS $${a.priceEnd}`, WIDTH - 10, topLine - 22, 14, "#ccc", 1);
-      this.say(`STORE BUYS $${a.priceStart}`, WIDTH - 10, startLine + 4, 14, "#ccc", 1);
+      if (a.priceEnd) this.say(`STORE SELLS $${a.priceEnd}`, WIDTH - 10, topLine - 22, 14, "#ccc", 1);
+      if (a.priceStart) this.say(`STORE BUYS $${a.priceStart}`, WIDTH - 10, startLine + 4, 14, "#ccc", 1);
       if (a.storeSells) this.img("store-booth", WIDTH / 2, topLine - 4, 1, { ox: 0.5, oy: 1 });
     } else this.say(`START $${a.priceStart}`, WIDTH - 10, startLine + 4, 14, "#ccc", 1);
     for (let p = 0; p < 4; p++) {
@@ -228,15 +232,15 @@ export class GameScene extends Phaser.Scene {
       const selling = a.sellers[p] === 1;
       const lead = land ? a.buyer === p : a.buyer === p || a.seller === p;
       this.img(walkerKey(this.race(p)), x, y + 32, 1.6, { ox: 0.5, oy: 1, tint: this.color(p) });
-      this.say(this.name(p), x, HEIGHT - 128, 14, css(this.color(p)), 0.5);
-      this.say(selling ? "SELLER" : "BUYER", x, HEIGHT - 112, 12, "#aaa", 0.5);
-      if (!land) this.say(`${this.v("GoodsPlayersNb", a.good * 4 + p)} UNITS`, x, HEIGHT - 98, 12, "#aaa", 0.5);
+      this.say(this.name(p), x, 334, 14, this.textColor(p), 0.5);
+      const units = land ? "" : `  ${this.v("GoodsPlayersNb", a.good * 4 + p)} UNITS`;
+      this.say((selling ? "SELLER" : "BUYER") + units, x, 350, 12, "#aaa", 0.5);
       const bid = a.bids[p] ?? 0;
       if (bid) this.say(`$${bid}`, x + 24, y - 8, 16, lead ? "#ff0" : "#fff");
     }
     if (a.traded > 0) this.top.lineStyle(3, 0xffff00).lineBetween(0, py(a.positions[a.buyer] ?? 0), WIDTH, py(a.positions[a.buyer] ?? 0));
     // The time bar.
-    this.g.fillStyle(0x40c040).fillRect(16, HEIGHT - 84, Math.min(a.time, 255) * 2.4, 8);
+    this.g.fillStyle(0x40c040).fillRect(16, 316, Math.min(a.time, 255) * 2.4, 6);
   }
 
   private goodsStatus() {
@@ -248,7 +252,7 @@ export class GameScene extends Phaser.Scene {
     for (let p = 0; p < 4; p++) {
       const x = 90 + 146 * p;
       this.img(walkerKey(this.race(p)), x, base + 60, 1.4, { ox: 0.5, oy: 1, tint: this.color(p) });
-      this.say(this.name(p), x, base + 64, 14, css(this.color(p)), 0.5);
+      this.say(this.name(p), x, base + 64, 14, this.textColor(p), 0.5);
       let i = 0;
       for (const [kind, bars] of s.bars) {
         const h = Math.min(bars.to[p] ?? 0, 250);
@@ -274,7 +278,7 @@ export class GameScene extends Phaser.Scene {
       if (p > 3) return;
       const y = 104 + row * 60;
       this.img(portraitKey(this.race(p)), 20, y, 0.55, { tint: this.color(p) });
-      this.say(this.name(p), 80, y + 16, 16, css(this.color(p)));
+      this.say(this.name(p), 80, y + 16, 16, this.textColor(p));
       for (let k = 0; k < 4; k++) this.say(`$${sc.scores[k * 4 + p] ?? 0}`, cols[k], y + 16, 16, "#fff", 1);
     });
     this.say(`COLONY $${sc.colony}`, cols[3], 350, 18, "#ff0", 1);
@@ -291,13 +295,13 @@ export class GameScene extends Phaser.Scene {
       this.wrap(l, WIDTH / 2, ty, WIDTH - 32, 16, "#fff");
       ty += l.length > 60 ? 40 : 22;
     }
-    if (m.inTurn) {
+    if (m.inTurn && (m.screen === "map" || m.screen === "town")) {
       const cp = this.v("CurrentPlayer");
       this.g.fillStyle(this.color(cp)).fillRect(16, HEIGHT - 20, this.v("turnTime") * 4, 10);
     }
     // Each player's money, in their colour.
     for (let p = 0; p < 4; p++)
-      this.say(`${this.name(p)} $${this.v("PlayersCash", p)}`, 16 + 156 * p, HEIGHT - 42, 13, css(this.color(p)));
+      this.say(`${this.name(p)} $${this.v("PlayersCash", p)}`, 16 + 156 * p, HEIGHT - 42, 13, this.textColor(p));
   }
 }
 

@@ -39,6 +39,8 @@ export const STREET_BOTTOM = 0x5e;
 export const TOWN_LEFT = 0x49;
 export const TOWN_RIGHT = 0xad;
 export const doorX = (column: number) => 0x30 + 4 * column;
+/** The town screen's height for a walker's y: the town is drawn taller than the map (from $28, 4 pixels a unit). */
+export const townY = (y: number) => (y - 0x28) * 4;
 
 /** The town's buildings and their door columns (unk_1E00 and unk_1E28). */
 export const TOWN_TOP = [
@@ -69,3 +71,6 @@ export function atariColor(c: number): number {
 }
 
 export const css = (rgb: number) => "#" + rgb.toString(16).padStart(6, "0");
+
+/** A seat's colour made light enough for text. */
+export const textColor = (c: number) => css(atariColor((c & 0xf0) | 0x0c));

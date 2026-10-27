@@ -55,14 +55,14 @@ Placeholders are labelled boxes; this file lists what each one stands for.
 |---|---|---|
 | `town-street` | 640 x 40 | The town's street, between the two rows of buildings. |
 | `town-ground` | 640 x 480 | The town screen behind everything. |
-| `bldg-crystite` | 88 x 80 | The crystite outfitter (top row, first). |
-| `bldg-smithore` | 88 x 80 | The smithore outfitter (top row, second). |
-| `bldg-energy` | 88 x 80 | The energy outfitter (top row, third). |
-| `bldg-food` | 88 x 80 | The food outfitter (top row, last). |
-| `bldg-assay` | 88 x 80 | The assay office (bottom row, first). |
-| `bldg-land` | 80 x 80 | The land office (bottom row, second). |
-| `bldg-pub` | 80 x 80 | The pub (bottom row, third). |
-| `bldg-corral` | 120 x 80 | The M.U.L.E. corral (bottom row, right). |
+| `bldg-crystite` | 88 x 120 | The crystite outfitter (top row, first). |
+| `bldg-smithore` | 88 x 120 | The smithore outfitter (top row, second). |
+| `bldg-energy` | 88 x 120 | The energy outfitter (top row, third). |
+| `bldg-food` | 88 x 120 | The food outfitter (top row, last). |
+| `bldg-assay` | 88 x 112 | The assay office (bottom row, first). |
+| `bldg-land` | 80 x 112 | The land office (bottom row, second). |
+| `bldg-pub` | 80 x 112 | The pub (bottom row, third). |
+| `bldg-corral` | 120 x 112 | The M.U.L.E. corral (bottom row, right). |
 
 ## Events
 

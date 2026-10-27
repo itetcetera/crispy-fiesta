@@ -236,7 +236,7 @@
    "key": "bldg-crystite",
    "file": "bldg-crystite.svg",
    "width": 88,
-   "height": 80,
+   "height": 120,
    "group": "Town",
    "what": "The crystite outfitter (top row, first)."
   },
@@ -244,7 +244,7 @@
    "key": "bldg-smithore",
    "file": "bldg-smithore.svg",
    "width": 88,
-   "height": 80,
+   "height": 120,
    "group": "Town",
    "what": "The smithore outfitter (top row, second)."
   },
@@ -252,7 +252,7 @@
    "key": "bldg-energy",
    "file": "bldg-energy.svg",
    "width": 88,
-   "height": 80,
+   "height": 120,
    "group": "Town",
    "what": "The energy outfitter (top row, third)."
   },
@@ -260,7 +260,7 @@
    "key": "bldg-food",
    "file": "bldg-food.svg",
    "width": 88,
-   "height": 80,
+   "height": 120,
    "group": "Town",
    "what": "The food outfitter (top row, last)."
   },
@@ -268,7 +268,7 @@
    "key": "bldg-assay",
    "file": "bldg-assay.svg",
    "width": 88,
-   "height": 80,
+   "height": 112,
    "group": "Town",
    "what": "The assay office (bottom row, first)."
   },
@@ -276,7 +276,7 @@
    "key": "bldg-land",
    "file": "bldg-land.svg",
    "width": 80,
-   "height": 80,
+   "height": 112,
    "group": "Town",
    "what": "The land office (bottom row, second)."
   },
@@ -284,7 +284,7 @@
    "key": "bldg-pub",
    "file": "bldg-pub.svg",
    "width": 80,
-   "height": 80,
+   "height": 112,
    "group": "Town",
    "what": "The pub (bottom row, third)."
   },
@@ -292,7 +292,7 @@
    "key": "bldg-corral",
    "file": "bldg-corral.svg",
    "width": 120,
-   "height": 80,
+   "height": 112,
    "group": "Town",
    "what": "The M.U.L.E. corral (bottom row, right)."
   },

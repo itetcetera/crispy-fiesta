@@ -190,7 +190,7 @@ export class Model {
         break;
       case "ScoreShown":
         this.screen = "score";
-        this.title = "";
+        this.title = this.message = "";
         this.score = { round: n("round"), order: a("order"), scores: a("scores"), colony: n("colony"), walk: [], firstFounder: -1 };
         break;
       case "ScoreWalk":
