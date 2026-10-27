@@ -34,6 +34,15 @@ public class PlayerTurnTests
         }
         g.Level = (byte)(r.Next(3) == 0 ? 0 : 2);
         for (int p = 0; p < 4; p++) if (r.Next(3) == 0) g.GoodsPlayersNb[p] = (byte)r.Next(0, 3);
+        // Each player a species, with its walker frames: the map's decide the mountain and river slowdowns.
+        var s = new Random(seed * 13 + 5);
+        for (int p = 0; p < 4; p++)
+        {
+            var race = (Race)s.Next(8);
+            g.PlayersRace[p] = (byte)race;
+            MapGraphics.WalkerMap(race).CopyTo(g.WalkerMap, p * 0x80);
+            MapGraphics.WalkerTown(race).CopyTo(g.WalkerTown, p * 0x110);
+        }
         return new Scenario(g, seed);
     }
 
@@ -277,6 +286,8 @@ public class PlayerTurnTests
                     "sync late" => at.Skip(events.Count).First(e => e.Item2 == "sync").Item1 > VFrame(),
                     _ when q.StartsWith("time late ") => at.Skip(events.Count).First(e => e.Item2.StartsWith("w ") && e.Item2.Split(' ')[3] == q[10..]).Item1 > VFrame(),
                     "button first" => at.Skip(events.Count).First(e => !e.Item2.StartsWith("w ")).Item2 != "timeout",
+                    // The town comes on the last frame's collisions: the walker's new lines were never latched.
+                    "store early" => StoreEarly(at.Where(e => e.Item2.StartsWith("w ")).ToList(), VFrame()),
                     "gamble late" => at.First(e => e.Item1 >= VFrame() && e.Item2 == "end").Item1 > VFrame() + 277,
                     _ => false,
                 };
@@ -324,6 +335,22 @@ public class PlayerTurnTests
         }
         events.Add($"{VFrame()} done");
         return new Run(events, state, inputs, rng.Position, timers);
+    }
+
+    /// <summary>Whether the original went into the town on this frame with nothing latched for the river or
+    /// the store, after a frame that had it: its walker line on this frame shows no collision, the one
+    /// before showed one, and the next is the town's.</summary>
+    static bool StoreEarly(List<(long, string)> w, long frame)
+    {
+        int i = w.FindIndex(e => e.Item1 == frame);
+        if (i < 1 || i + 1 >= w.Count || w[i + 1].Item2.Split(' ')[6] != "0") return false;
+        static int Hit(string line)
+        {
+            var parts = line.Split(' ');
+            int c = Array.IndexOf(parts, "c");
+            return c < 0 ? 0 : Convert.ToInt32(parts[c + 1], 16) & 8;
+        }
+        return Hit(w[i].Item2) == 0 && Hit(w[i - 1].Item2) != 0;
     }
 
     static string Collisions(GameState g, Turn t)

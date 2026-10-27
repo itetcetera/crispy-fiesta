@@ -30,14 +30,14 @@ Placeholders are labelled boxes; this file lists what each one stands for.
 
 | File | Size | What it shows |
 |---|---|---|
-| `walker-mechtron` | 32 x 32 | The Mechtron walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. |
-| `walker-gollumer` | 32 x 32 | The Gollumer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. |
-| `walker-packer` | 32 x 32 | The Packer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. |
-| `walker-bonzoid` | 32 x 32 | The Bonzoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. |
-| `walker-spheroid` | 32 x 32 | The Spheroid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. |
-| `walker-flapper` | 32 x 32 | The Flapper walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. |
-| `walker-leggite` | 32 x 32 | The Leggite walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. |
-| `walker-humanoid` | 32 x 32 | The Humanoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. |
+| `walker-mechtron` | 32 x 36 | The Mechtron walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py). |
+| `walker-gollumer` | 32 x 36 | The Gollumer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py). |
+| `walker-packer` | 32 x 36 | The Packer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py). |
+| `walker-bonzoid` | 32 x 36 | The Bonzoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py). |
+| `walker-spheroid` | 32 x 36 | The Spheroid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py). |
+| `walker-flapper` | 32 x 36 | The Flapper walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py). |
+| `walker-leggite` | 32 x 36 | The Leggite walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py). |
+| `walker-humanoid` | 32 x 36 | The Humanoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py). |
 | `portrait-mechtron` | 96 x 96 | The Mechtron for the lobby and the score screen. |
 | `portrait-gollumer` | 96 x 96 | The Gollumer for the lobby and the score screen. |
 | `portrait-packer` | 96 x 96 | The Packer for the lobby and the score screen. |

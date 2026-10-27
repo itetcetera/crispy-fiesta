@@ -602,7 +602,7 @@ public static partial class PlayerTurn
                 t.Mask = 0;
                 acted = true;
             }
-            if ((Hits(game, t) & 8) != 0 && t.Y >= 0x66 && t.Y < 0x8C)
+            if (EntersStore(game, t))
             {
                 if (t.X >= 0x78 && t.X < 0x81) t.X = 0x7C;
                 yield return ToTown(game, t);
@@ -612,6 +612,16 @@ public static partial class PlayerTurn
             if (acted) { acted = false; continue; }
             yield return null;
         }
+    }
+
+    /// <summary>$6C49: the walker on the river or the store between $66 and $8C goes into the town. The loop
+    /// reads the register and then the walker's y: when the blank comes between the two, it goes in on the
+    /// last frame's collisions before the beam reaches the walker's new lines, which are then never latched.</summary>
+    static bool EntersStore(Game game, Turn t)
+    {
+        bool inRange = t.Y >= 0x66 && t.Y < 0x8C;
+        if (inRange && (t.Latch.Players & 8) != 0 && game.Race?.Invoke("store early") == true) return true;
+        return (Hits(game, t) & 8) != 0 && inRange;
     }
 
     /// <summary>The main loop reads the collision register during the frame.</summary>

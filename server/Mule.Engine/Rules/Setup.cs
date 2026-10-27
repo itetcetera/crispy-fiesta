@@ -25,11 +25,10 @@ public static class Setup
             g.PlayersAi[p] = seats[p].Cpu ? (byte)0xFF : (byte)(8 + p); // joystick p
             g.PlayersRace[p] = (byte)seats[p].Race;
             g.PlayersColor[p] = seats[p].Color;
-            // The disk loads these with the species; the snapshot holds only the Mechtron's and the Bonzoid's.
-            // TODO: the other six species' frames need the disk image.
+            // The species' walker frames (the map's decide the mountain and river slowdowns).
             var race = (Race)g.PlayersRace[p];
-            (MapGraphics.WalkerTown(race) ?? MapGraphics.MechtronTown).CopyTo(g.WalkerTown, p * 0x110);
-            (MapGraphics.WalkerMap(race) ?? MapGraphics.MechtronMap).CopyTo(g.WalkerMap, p * 0x80);
+            MapGraphics.WalkerTown(race).CopyTo(g.WalkerTown, p * 0x110);
+            MapGraphics.WalkerMap(race).CopyTo(g.WalkerMap, p * 0x80);
         }
         GenerateMap(g, rng);
         InitValues(g);

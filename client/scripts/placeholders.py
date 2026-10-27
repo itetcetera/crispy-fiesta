@@ -22,8 +22,9 @@ ENTRIES = [
     *[(f"icon-{g}", 28, 28, "Map", f"The {g} factory on an improved plot (the output number is drawn beside it).", c)
       for g, c in zip(GOODS, ["#7cc35a", "#f2d24b", "#a0a0b0", "#5fd0d0"])],
     ("assay-mark", 28, 28, "Map", "The assay flag on a sampled plot.", "#ffffff"),
-    *[(f"walker-{s}", 32, 32, "Players", f"The {s.capitalize()} walking (facing right; the game mirrors it to face left). "
-       "Drawn this size on the map and twice the size in town; tinted to the player's colour.", "#ffffff")
+    *[(f"walker-{s}", 32, 36, "Players", f"The {s.capitalize()} walking (facing right; the game mirrors it to face left). "
+       "Drawn this size on the map and twice the size in town; tinted to the player's colour. "
+       "The placeholder is the original's town frame, from the disk (tools/species_frames.py).", "#ffffff")
       for s in SPECIES],
     *[(f"portrait-{s}", 96, 96, "Players", f"The {s.capitalize()} for the lobby and the score screen.", "#ffffff")
       for s in SPECIES],

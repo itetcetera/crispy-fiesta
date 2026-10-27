@@ -74,67 +74,67 @@
   },
   {
    "key": "walker-mechtron",
-   "file": "walker-mechtron.svg",
+   "file": "walker-mechtron.png",
    "width": 32,
-   "height": 32,
+   "height": 36,
    "group": "Players",
-   "what": "The Mechtron walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+   "what": "The Mechtron walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py)."
   },
   {
    "key": "walker-gollumer",
-   "file": "walker-gollumer.svg",
+   "file": "walker-gollumer.png",
    "width": 32,
-   "height": 32,
+   "height": 36,
    "group": "Players",
-   "what": "The Gollumer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+   "what": "The Gollumer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py)."
   },
   {
    "key": "walker-packer",
-   "file": "walker-packer.svg",
+   "file": "walker-packer.png",
    "width": 32,
-   "height": 32,
+   "height": 36,
    "group": "Players",
-   "what": "The Packer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+   "what": "The Packer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py)."
   },
   {
    "key": "walker-bonzoid",
-   "file": "walker-bonzoid.svg",
+   "file": "walker-bonzoid.png",
    "width": 32,
-   "height": 32,
+   "height": 36,
    "group": "Players",
-   "what": "The Bonzoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+   "what": "The Bonzoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py)."
   },
   {
    "key": "walker-spheroid",
-   "file": "walker-spheroid.svg",
+   "file": "walker-spheroid.png",
    "width": 32,
-   "height": 32,
+   "height": 36,
    "group": "Players",
-   "what": "The Spheroid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+   "what": "The Spheroid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py)."
   },
   {
    "key": "walker-flapper",
-   "file": "walker-flapper.svg",
+   "file": "walker-flapper.png",
    "width": 32,
-   "height": 32,
+   "height": 36,
    "group": "Players",
-   "what": "The Flapper walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+   "what": "The Flapper walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py)."
   },
   {
    "key": "walker-leggite",
-   "file": "walker-leggite.svg",
+   "file": "walker-leggite.png",
    "width": 32,
-   "height": 32,
+   "height": 36,
    "group": "Players",
-   "what": "The Leggite walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+   "what": "The Leggite walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py)."
   },
   {
    "key": "walker-humanoid",
-   "file": "walker-humanoid.svg",
+   "file": "walker-humanoid.png",
    "width": 32,
-   "height": 32,
+   "height": 36,
    "group": "Players",
-   "what": "The Humanoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+   "what": "The Humanoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour. The placeholder is the original's town frame, from the disk (tools/species_frames.py)."
   },
   {
    "key": "portrait-mechtron",
