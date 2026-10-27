@@ -7,6 +7,17 @@ The original M.U.L.E. (Atari 800, 1983), tournament rules, for up to four player
 - `client/`: the browser game (TypeScript + Phaser 3).
 - `docs/`: the plan, the protocol between them, and the art list.
 
+## Run it with Docker
+
+One image holds the browser client and the game server, on port 8080:
+
+```sh
+docker build -t mule-online .
+docker run -p 8080:8080 mule-online
+```
+
+Rooms live in memory, so restarting the container ends the games in progress.
+
 ## Play it on your computer
 
 You need the .NET 8 SDK and Node.js 20 or newer.
