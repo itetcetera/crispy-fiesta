@@ -207,6 +207,8 @@ public static partial class PlayerTurn
                 }
             }
             if (v.Button[t.Ctrl] == 0) yield break;
+            // Online only: a player who dropped out a while ago does not hold up their turn.
+            if (v.Away[g.CurrentPlayer]) yield break;
             yield return null;
         }
     }

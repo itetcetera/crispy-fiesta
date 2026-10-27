@@ -29,7 +29,7 @@ Send `Input` whenever the controls change; the server keeps the last one until t
 Up to 4 players. Humans take the highest seats in the order they joined and CPUs the lowest
 (as in the original); CPUs are Mechtrons. Seat colours are fixed: 196, 132, 52, 84 (Atari colour
 bytes: hue in the high nibble). A dropped player's seat holds no buttons until they come back;
-the game does not wait, except where the original waits for every human's button (the score).
+the game does not wait for them, except at the "press all buttons" screens (the score after each round), which wait up to a minute of game time for a dropped player, then go on as if they had pressed. The start of a dropped player's own turn waits the same minute; the turn then runs out with no input.
 
 ## Server → browser
 

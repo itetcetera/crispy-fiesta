@@ -184,7 +184,7 @@ public static class GoodsAuction
     enum BarKind { Usage = 1, Spoilage = 2, Production = 3 }
 
     /// <summary>The cut-off of the original's button waits: every human has pressed (never with only CPUs).</summary>
-    static bool AllPressed(GameState g, Vbi v) => g.MaxIndexCpu != 3 && (byte)(g.MaxIndexCpu + 1 + v.Presses) >= 4;
+    static bool AllPressed(GameState g, Vbi v) => g.MaxIndexCpu != 3 && (byte)(g.MaxIndexCpu + 1 + v.Presses + v.AwayNotPressed()) >= 4;
 
     /// <summary>v01 ($99F9): the status screen's vertical blank work. A bar step is allowed every
     /// <see cref="Auction.Speed"/> frames. In the tournament game a player's button hides their line.</summary>

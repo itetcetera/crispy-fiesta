@@ -208,7 +208,7 @@ public static class LandAuction
         while (true)
         {
             if (v.Timers[0] == 0) { v.SoundOnPress = 0; yield break; }
-            if (g.MaxIndexCpu != 3 && (byte)(g.MaxIndexCpu + 1 + v.Presses) >= 4)
+            if (g.MaxIndexCpu != 3 && (byte)(g.MaxIndexCpu + 1 + v.Presses + v.AwayNotPressed()) >= 4)
             {
                 v.Presses = 4;
                 v.Timers[0] = 1;

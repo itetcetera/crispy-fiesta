@@ -16,6 +16,7 @@ screen geometry, message text).
 | Quirks | Every verified original quirk/bug is kept; unreachable ones are left out |
 | Exception | A player worth exactly 0 is ranked normally (last) |
 | Screen saver | Left out (2026-10-27): the original freezes the game after ~9 minutes without a button press ($5C98, TV burn-in guard); online games never freeze |
+| Dropped players | A dropped player's seat holds no input. "Press all buttons" waits and the start of their turn wait one minute of game time for them, then go on (2026-10-27) |
 | Private-offer land sale | Included (human sellers only, as in the original) |
 | Timing | NTSC, 60 ticks per second |
 | CPU players | In scope (doc section 9); empty seats are CPUs |

@@ -74,6 +74,27 @@ public class RoomTests(ITestOutputHelper output)
             Assert.DoesNotContain(name, StateView.Names);
     }
 
+    /// <summary>Two players; one drops at the start and never comes back. The score screens wait a
+    /// minute for them each time, then go on, and the game ends.</summary>
+    [Fact]
+    public void A_dropped_player_holds_the_score_a_minute_then_the_game_goes_on()
+    {
+        var room = new Room("ABCDEF", new SystemRandomSource(3));
+        room.Join(Guest("a"));
+        room.Join(Guest("b"));
+        room.Start("a");
+        room.Leave("b", dropped: true);
+        var recent = new Queue<string>();
+        while (room.Step())
+        {
+            room.SetInput("a", room.Tick % 120 < 10, 15);
+            if (room.TakeFrame() is { } f)
+                foreach (var e in f.Events) { recent.Enqueue($"{room.Tick} {e["t"]}"); if (recent.Count > 12) recent.Dequeue(); }
+            Assert.True(room.Tick < 600_000, "the game did not end: " + string.Join(", ", recent));
+        }
+        Assert.Equal(RoomPhase.Over, room.Phase);
+    }
+
     /// <summary>A CPU-only room plays a whole game; every event goes out as JSON.</summary>
     [Fact]
     public void A_cpu_game_plays_to_the_end()

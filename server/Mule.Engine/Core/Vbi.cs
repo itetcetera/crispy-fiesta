@@ -31,6 +31,18 @@ public sealed class Vbi
     static readonly byte[] SoundLength = { 2, 2, 2, 2, 21, 8, 128 }; // $5E2F
     static readonly byte[] SoundControl = { 173, 173, 173, 173, 173, 170, 2 }; // $5E36
 
+    /// <summary>Online only (not in the original): seats whose player dropped out a while ago. The "press
+    /// all buttons" waits count them as pressed, so the others are not held up (Marcus, 2026-10-27).</summary>
+    public readonly bool[] Away = new bool[4];
+
+    /// <summary>Away seats that have not pressed since the last reset.</summary>
+    public int AwayNotPressed()
+    {
+        int n = 0;
+        for (int x = 0; x < 4; x++) if (Away[x] && ButtonPushed[x] != 0) n++;
+        return n;
+    }
+
     /// <summary>initPlayersButtons ($131C).</summary>
     public void InitButtons()
     {

@@ -16,6 +16,8 @@ public sealed class Member
     public required string Name { get; set; }
     public Race Race { get; set; } = Race.Humanoid;
     public bool Connected { get; set; } = true;
+    /// <summary>The game frame the player dropped at.</summary>
+    public long DroppedAt { get; set; }
     /// <summary>The seat in the game (0-3), or -1 before it starts.</summary>
     public int Seat { get; set; } = -1;
 }
@@ -38,6 +40,10 @@ public sealed class RoomException(string message) : Exception(message);
 public sealed class Room
 {
     public const int MaxPlayers = GameState.Players;
+
+    /// <summary>A dropped player's seat counts as pressed at the "press all buttons" waits after a
+    /// minute of game time (Marcus, 2026-10-27).</summary>
+    public const int AwayAfter = 60 * 60;
 
     // playersColor ($0905) as the snapshot holds it: each seat's colour is fixed.
     static readonly byte[] SeatColors = { 196, 132, 52, 84 };
@@ -100,6 +106,7 @@ public sealed class Room
                 return;
             }
             m.Connected = false;
+            m.DroppedAt = Tick;
             if (m.Seat >= 0) _inputs[m.Seat] = new PlayerInput(false);
             if (Phase == RoomPhase.Lobby && HostId == id)
                 HostId = _members.FirstOrDefault(x => x.Connected)?.Id ?? HostId;
@@ -153,6 +160,8 @@ public sealed class Room
         lock (_sync)
         {
             if (Phase != RoomPhase.Playing || _game == null) return false;
+            foreach (var m in _members)
+                if (m.Seat >= 0) _game.Vbi.Away[m.Seat] = !m.Connected && Tick - m.DroppedAt >= AwayAfter;
             _game.RunFrame(_inputs);
             Tick++;
             Collect();
