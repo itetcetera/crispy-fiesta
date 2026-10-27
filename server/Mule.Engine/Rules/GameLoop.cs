@@ -27,6 +27,18 @@ public static class GameLoop
     // Frames initVarsFromMaps and calcGoodsPriceFromNow run (measured on the original).
     const int PricesFrames = 1;
 
+    /// <summary>The rounds ($478A-$484C): until the last one, or until the colony fails (addMessageFailure
+    /// $8ACC, which goes back to the start once the score has been shown).</summary>
+    public static IEnumerable Rounds(Game game, ScoreScreen.Outcome score)
+    {
+        var g = game.State;
+        do
+        {
+            yield return Round(game, score);
+            if (score.Failed) yield break;
+        } while (g.NumRound < g.NbRounds);
+    }
+
     /// <summary>round ($478A): one round, from the land grant to the score.</summary>
     public static IEnumerable Round(Game game, ScoreScreen.Outcome score)
     {
@@ -163,6 +175,7 @@ public static class GameLoop
     public static IEnumerable AnimMapProd(Game game)
     {
         var g = game.State;
+        game.Trace?.Invoke("prod anim");
         if (g.NumRound == 0) yield break;
         game.Emit(new TitleEvent("PRODUCTION"));
         yield return game.WaitJiffy(6);

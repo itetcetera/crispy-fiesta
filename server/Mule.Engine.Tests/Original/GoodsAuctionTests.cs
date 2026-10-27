@@ -334,9 +334,11 @@ public class GoodsAuctionTests
     }
 
     /// <summary>Answers the port's race questions with what the original did at the same point.</summary>
-    static Func<string, bool> Oracle(Game game, Func<long> trade)
+    static Func<string, bool> Oracle(Game game, Func<long> trade) => Oracle(game, trade, OriginalEvents);
+
+    internal static Func<string, bool> Oracle(Game game, Func<long> trade, List<string> original)
     {
-        var ev = OriginalEvents.Select(e => Split(e)).ToList();
+        var ev = original.Select(e => Split(e)).ToList();
         var select = ev.Where(e => e.Item2 == "select").Select(e => e.Item1).DefaultIfEmpty(0).First();
         bool SelectLate(string q) => q == "select late" && game.Frame < select;
         // With nothing to sell there is no trading, and no other race.

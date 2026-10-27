@@ -35,10 +35,25 @@ public static class Scoring
         {
             // (total - 10000) / 20000, converted with the OS float-to-integer routine (FPI), which
             // rounds to nearest: that makes it floor(total / 20000). Negative gives an FPI error -> 0.
+            // The difference is left in plotsTemp3 as an OS float ($6E1D).
+            WriteFloat(g.PlotsTemp3, g.TotalScore - 10000);
             int r = g.TotalScore / 20000;
             g.SuccessScore = g.TotalScore < 10000 ? (byte)0 : (byte)Math.Min(r, 255);
         }
         Rank(g, rng);
+    }
+
+    /// <summary>A whole number as the Atari OS writes a float: sign and excess-64 power of 100, then five
+    /// BCD bytes of base-100 digits, the first not zero (zero is all zeros).</summary>
+    static void WriteFloat(byte[] to, int value)
+    {
+        Array.Clear(to, 0, 6);
+        if (value == 0) return;
+        int n = Math.Abs(value);
+        var digits = new List<int>();
+        for (; n > 0; n /= 100) digits.Insert(0, n % 100);
+        to[0] = (byte)((value < 0 ? 0x80 : 0) | (64 + digits.Count - 1));
+        for (int i = 0; i < Math.Min(5, digits.Count); i++) to[1 + i] = (byte)((digits[i] / 10 << 4) | digits[i] % 10);
     }
 
     /// <summary>

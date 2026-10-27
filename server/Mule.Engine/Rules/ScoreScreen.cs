@@ -71,10 +71,11 @@ public static class ScoreScreen
         yield return game.Frames(game.Think?.Invoke("score text") ?? TextFrames);
         MessageScore(game, result);
         game.Emit(new MessageEvent(result.Message));
+        // The failure waits straight away, without resetting the buttons first.
         if (result.Failed) game.Emit(new ColonyFailedEvent(result.FailedGood));
-        v.InitButtons();
+        else v.InitButtons();
         game.Trace?.Invoke("score wait");
-        yield return Wait(game);
+        yield return Wait(game, result.Message == "" ? 1 : 0);
         // loc_6F60: the screen cleared, no handler, the sound off.
         v.Handler = null;
         game.Trace?.Invoke("score end");
@@ -203,7 +204,7 @@ public static class ScoreScreen
     /// <summary>scoreWait ($6F19): "press all player buttons" for 100 ticks and "press option and start
     /// to restart" for 30, in turn, until every human has pressed; with only CPUs 510 frames (1020 after
     /// round 12) after the first message.</summary>
-    public static IEnumerable Wait(Game game)
+    public static IEnumerable Wait(Game game, int setup = 0)
     {
         var g = game.State;
         var v = game.Vbi;
@@ -211,6 +212,13 @@ public static class ScoreScreen
         {
             bool press = (k & 1) == 0;
             game.Emit(new MessageEvent(press ? " PRESS ALL PLAYER BUTTONS TO GO ON. " : " * PRESS OPTION & START TO RESTART *"));
+            if (k == 0)
+            {
+                // addMessage looks for the end of the message so far: with none ended (no colony
+                // message) the search runs past a vertical blank (measured on the original).
+                yield return game.Frames(game.Think?.Invoke("score press") ?? setup);
+                game.Trace?.Invoke("score press");
+            }
             yield return LandAuction.WaitButtonsTick(game, press ? (byte)0x64 : (byte)0x1E);
             if (v.Presses >= 4) yield break;
             if (g.MaxIndexCpu != 3) continue;

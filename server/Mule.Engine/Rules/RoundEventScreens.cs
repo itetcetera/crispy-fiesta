@@ -50,6 +50,7 @@ public static class RoundEventScreens
             yield break;
         }
         var kind = (RoundEventKind)x;
+        game.Trace?.Invoke($"kind {kind}");
         switch (kind)
         {
             case RoundEventKind.PestAttack: yield return Pest(game); break;

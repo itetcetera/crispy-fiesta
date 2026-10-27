@@ -40,7 +40,7 @@ public static class GoodsAuction
     }
 
     // Vertical blanks the drawing of the status screen runs past (measured on the scanline Atari).
-    const int StatusDrawFrames = 2;
+    const int StatusDrawFrames = 3;
 
     /// <summary>animUsageSpoilageProd ($5F07): the good's bars go from what each player held to what is
     /// left after usage and spoilage (food, energy) or the 50-unit cap (smithore, crystite), then up by
@@ -66,7 +66,7 @@ public static class GoodsAuction
         a.Flash = 0;
         v.InitButtons();
         game.Emit(new GoodsStatusEvent(good));
-        yield return game.Frames(StatusDrawFrames);
+        yield return game.Frames(game.Think?.Invoke("status draw") ?? StatusDrawFrames);
 
         // The amounts before anything happens.
         for (int p = 3; p >= 0; p--) a.Bid[p] = (ushort)(g.GoodsPlayersNb[good * 4 + p] * 4);
@@ -508,7 +508,7 @@ public static class GoodsAuction
 
     // Vertical blanks the trading screen's drawing runs past before its handler starts (measured on
     // the scanline Atari).
-    const int TradeDrawFrames = 2;
+    const int TradeDrawFrames = 3;
 
     /// <summary>auctionBuySell ($9D2A) and auctionBuySellGoodAuction ($9F57): sellers start at the top,
     /// buyers at the bottom; when the highest bid meets the lowest ask, units change hands one by one
@@ -576,7 +576,7 @@ public static class GoodsAuction
             else { a.Pos[x] = 0x52; a.Low[x] = 0x52; }
         }
         game.Emit(new GoodsAuctionStartedEvent(good, a.PriceStart, a.PriceEnd, a.Seller.ToArray(), a.Flag43 == 0));
-        yield return game.Frames(TradeDrawFrames);
+        yield return game.Frames(game.Think?.Invoke("trade draw") ?? TradeDrawFrames);
         v.Handler = () => Vbl(game, a);
         game.Trace?.Invoke("trade");
 
