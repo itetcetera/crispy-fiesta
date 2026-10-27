@@ -121,7 +121,8 @@ docs/ASSETS.md              every art asset the game needs, with sizes and notes
    auctions (incl. collusion), the player turn (walking, town, store, pub, assay, wampus). Needs
    the walking/town geometry traced from the disassembly first.
 3. **CPU players** — doc section 9.
-4. **Server** — rooms, invite codes, SignalR hub, tick loop, reconnects.
+4. **Server** — rooms, invite codes, SignalR hub, tick loop, reconnects. Done 2026-10-27: see
+   `docs/PROTOCOL.md`; tests in `server/Mule.Server.Tests` (a whole game through the real hub).
 5. **Client** — Phaser screens for every phase with placeholder art, keyboard/gamepad input,
    asset manifest and `docs/ASSETS.md`.
 6. **End-to-end** — 4 browsers (or 1 human + 3 CPUs) play full 12-round games.

@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Mule.Engine\Mule.Engine.csproj" />
-    <ProjectReference Include="..\Mule.Atari\Mule.Atari.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
