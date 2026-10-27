@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Mule.Engine.Flow;
+using Mule.Engine.Rules;
 
 namespace Mule.Server.Wire;
 
@@ -22,6 +23,8 @@ public static class EventWire
         var node = JsonSerializer.SerializeToNode(e, e.GetType(), Options) as JsonObject ?? new JsonObject();
         string name = e.GetType().Name;
         node["t"] = name.EndsWith("Event") ? name[..^5] : name;
+        // The text the original scrolls for a player event.
+        if (e is PlayerEventShownEvent p) node["text"] = PlayerEvents.Text(p.Result);
         return node;
     }
 

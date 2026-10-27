@@ -16,7 +16,7 @@ public sealed record PlotGrantedEvent(int Plot, int Player) : GameEvent;
 // Land auction
 public sealed record AuctionStartedEvent(int Plot, int Price) : GameEvent;
 public sealed record AuctionPriceEvent(int Price) : GameEvent;
-public sealed record AuctionStateEvent(byte[] Positions, byte Leader, ushort High, byte Time) : GameEvent;
+public sealed record AuctionStateEvent(byte[] Positions, byte Leader, ushort High, byte Time, ushort[]? Bids = null) : GameEvent;
 public sealed record AuctionEndedEvent(int Winner, int Price) : GameEvent;
 
 // Goods auction
@@ -30,7 +30,7 @@ public sealed record GoodsSelectEvent(int Good, byte[] Sellers) : GameEvent;
 /// <summary>The goods auction's trading starts: the price scale and who sells.</summary>
 public sealed record GoodsAuctionStartedEvent(int Good, ushort PriceStart, ushort PriceEnd, byte[] Sellers, bool StoreSells) : GameEvent;
 /// <summary>One step of the goods auction: heights, the best buyer and seller ($FF the store) and the time bar.</summary>
-public sealed record GoodsAuctionStateEvent(byte[] Positions, byte Buyer, byte Seller, ushort High, ushort Low, byte Time) : GameEvent;
+public sealed record GoodsAuctionStateEvent(byte[] Positions, byte Buyer, byte Seller, ushort High, ushort Low, byte Time, ushort[]? Bids = null) : GameEvent;
 /// <summary>One unit changes hands at a price; a side of $FF is the store.</summary>
 public sealed record GoodsTradedEvent(byte Buyer, byte Seller, ushort Price) : GameEvent;
 /// <summary>The goods auction is over; the good's new price.</summary>

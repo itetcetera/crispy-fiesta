@@ -305,6 +305,10 @@ public static class LandAuction
     }
 
     /// <summary>sub_8E07: the price at a height.</summary>
+    /// <summary>The bids the screen shows: those of the players in the bidding zone.</summary>
+    internal static ushort[] ShownBids(Auction a) =>
+        Enumerable.Range(0, 4).Select(x => a.Out[x] == 0 && a.InZone[x] != 0 ? a.Bid[x] : (ushort)0).ToArray();
+
     internal static ushort PriceAt(GameState g, Auction a, byte pos)
     {
         byte d = (byte)((byte)(a.Top - pos) >> 1);
@@ -647,7 +651,7 @@ public static class LandAuction
                 }
                 a.PrevLeader = g.CurrentPlayer;
             }
-            game.Emit(new AuctionStateEvent(a.Pos.ToArray(), g.CurrentPlayer, a.HighBid, a.Time));
+            game.Emit(new AuctionStateEvent(a.Pos.ToArray(), g.CurrentPlayer, a.HighBid, a.Time, ShownBids(a)));
 
             if ((a.Time & 0x80) != 0) break;
             bool end = false;

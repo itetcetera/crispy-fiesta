@@ -655,7 +655,7 @@ public static class GoodsAuction
             game.Trace?.Invoke(StepText(g, a));
             a.FrameDone = 0;
             while (a.FrameDone == 0) yield return null;
-            game.Emit(new GoodsAuctionStateEvent(a.Pos.ToArray(), cp, a.Ask, a.HighBid, a.LowAsk, a.Time));
+            game.Emit(new GoodsAuctionStateEvent(a.Pos.ToArray(), cp, a.Ask, a.HighBid, a.LowAsk, a.Time, LandAuction.ShownBids(a)));
 
             a.Trade = 0;
             if (((cp | a.Ask) & 0x80) == 0 && a.HighBid >= a.LowAsk)

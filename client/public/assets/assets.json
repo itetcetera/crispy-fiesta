@@ -1,0 +1,412 @@
+{
+ "assets": [
+  {
+   "key": "plain",
+   "file": "plain.svg",
+   "width": 64,
+   "height": 64,
+   "group": "Map",
+   "what": "One plot of plain ground (the map is 9 x 5 plots)."
+  },
+  {
+   "key": "river",
+   "file": "river.svg",
+   "width": 64,
+   "height": 64,
+   "group": "Map",
+   "what": "A river plot (the middle column, above and below the store)."
+  },
+  {
+   "key": "store",
+   "file": "store.svg",
+   "width": 64,
+   "height": 64,
+   "group": "Map",
+   "what": "The town (the store) in the middle of the map; the walker enters it here."
+  },
+  {
+   "key": "mountain",
+   "file": "mountain.svg",
+   "width": 32,
+   "height": 16,
+   "group": "Map",
+   "what": "One mountain; the map draws one on each of its 20 bands, 8 scanlines high."
+  },
+  {
+   "key": "icon-food",
+   "file": "icon-food.svg",
+   "width": 28,
+   "height": 28,
+   "group": "Map",
+   "what": "The food factory on an improved plot (the output number is drawn beside it)."
+  },
+  {
+   "key": "icon-energy",
+   "file": "icon-energy.svg",
+   "width": 28,
+   "height": 28,
+   "group": "Map",
+   "what": "The energy factory on an improved plot (the output number is drawn beside it)."
+  },
+  {
+   "key": "icon-smithore",
+   "file": "icon-smithore.svg",
+   "width": 28,
+   "height": 28,
+   "group": "Map",
+   "what": "The smithore factory on an improved plot (the output number is drawn beside it)."
+  },
+  {
+   "key": "icon-crystite",
+   "file": "icon-crystite.svg",
+   "width": 28,
+   "height": 28,
+   "group": "Map",
+   "what": "The crystite factory on an improved plot (the output number is drawn beside it)."
+  },
+  {
+   "key": "assay-mark",
+   "file": "assay-mark.svg",
+   "width": 28,
+   "height": 28,
+   "group": "Map",
+   "what": "The assay flag on a sampled plot."
+  },
+  {
+   "key": "walker-mechtron",
+   "file": "walker-mechtron.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Players",
+   "what": "The Mechtron walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+  },
+  {
+   "key": "walker-gollumer",
+   "file": "walker-gollumer.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Players",
+   "what": "The Gollumer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+  },
+  {
+   "key": "walker-packer",
+   "file": "walker-packer.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Players",
+   "what": "The Packer walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+  },
+  {
+   "key": "walker-bonzoid",
+   "file": "walker-bonzoid.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Players",
+   "what": "The Bonzoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+  },
+  {
+   "key": "walker-spheroid",
+   "file": "walker-spheroid.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Players",
+   "what": "The Spheroid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+  },
+  {
+   "key": "walker-flapper",
+   "file": "walker-flapper.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Players",
+   "what": "The Flapper walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+  },
+  {
+   "key": "walker-leggite",
+   "file": "walker-leggite.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Players",
+   "what": "The Leggite walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+  },
+  {
+   "key": "walker-humanoid",
+   "file": "walker-humanoid.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Players",
+   "what": "The Humanoid walking (facing right; the game mirrors it to face left). Drawn this size on the map and twice the size in town; tinted to the player's colour."
+  },
+  {
+   "key": "portrait-mechtron",
+   "file": "portrait-mechtron.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Players",
+   "what": "The Mechtron for the lobby and the score screen."
+  },
+  {
+   "key": "portrait-gollumer",
+   "file": "portrait-gollumer.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Players",
+   "what": "The Gollumer for the lobby and the score screen."
+  },
+  {
+   "key": "portrait-packer",
+   "file": "portrait-packer.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Players",
+   "what": "The Packer for the lobby and the score screen."
+  },
+  {
+   "key": "portrait-bonzoid",
+   "file": "portrait-bonzoid.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Players",
+   "what": "The Bonzoid for the lobby and the score screen."
+  },
+  {
+   "key": "portrait-spheroid",
+   "file": "portrait-spheroid.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Players",
+   "what": "The Spheroid for the lobby and the score screen."
+  },
+  {
+   "key": "portrait-flapper",
+   "file": "portrait-flapper.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Players",
+   "what": "The Flapper for the lobby and the score screen."
+  },
+  {
+   "key": "portrait-leggite",
+   "file": "portrait-leggite.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Players",
+   "what": "The Leggite for the lobby and the score screen."
+  },
+  {
+   "key": "portrait-humanoid",
+   "file": "portrait-humanoid.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Players",
+   "what": "The Humanoid for the lobby and the score screen."
+  },
+  {
+   "key": "mule",
+   "file": "mule.svg",
+   "width": 32,
+   "height": 24,
+   "group": "Players",
+   "what": "A M.U.L.E. (twice the size in town)."
+  },
+  {
+   "key": "wampus",
+   "file": "wampus.svg",
+   "width": 24,
+   "height": 24,
+   "group": "Players",
+   "what": "The mountain wampus, when it shows."
+  },
+  {
+   "key": "town-street",
+   "file": "town-street.svg",
+   "width": 640,
+   "height": 40,
+   "group": "Town",
+   "what": "The town's street, between the two rows of buildings."
+  },
+  {
+   "key": "town-ground",
+   "file": "town-ground.svg",
+   "width": 640,
+   "height": 480,
+   "group": "Town",
+   "what": "The town screen behind everything."
+  },
+  {
+   "key": "bldg-crystite",
+   "file": "bldg-crystite.svg",
+   "width": 88,
+   "height": 80,
+   "group": "Town",
+   "what": "The crystite outfitter (top row, first)."
+  },
+  {
+   "key": "bldg-smithore",
+   "file": "bldg-smithore.svg",
+   "width": 88,
+   "height": 80,
+   "group": "Town",
+   "what": "The smithore outfitter (top row, second)."
+  },
+  {
+   "key": "bldg-energy",
+   "file": "bldg-energy.svg",
+   "width": 88,
+   "height": 80,
+   "group": "Town",
+   "what": "The energy outfitter (top row, third)."
+  },
+  {
+   "key": "bldg-food",
+   "file": "bldg-food.svg",
+   "width": 88,
+   "height": 80,
+   "group": "Town",
+   "what": "The food outfitter (top row, last)."
+  },
+  {
+   "key": "bldg-assay",
+   "file": "bldg-assay.svg",
+   "width": 88,
+   "height": 80,
+   "group": "Town",
+   "what": "The assay office (bottom row, first)."
+  },
+  {
+   "key": "bldg-land",
+   "file": "bldg-land.svg",
+   "width": 80,
+   "height": 80,
+   "group": "Town",
+   "what": "The land office (bottom row, second)."
+  },
+  {
+   "key": "bldg-pub",
+   "file": "bldg-pub.svg",
+   "width": 80,
+   "height": 80,
+   "group": "Town",
+   "what": "The pub (bottom row, third)."
+  },
+  {
+   "key": "bldg-corral",
+   "file": "bldg-corral.svg",
+   "width": 120,
+   "height": 80,
+   "group": "Town",
+   "what": "The M.U.L.E. corral (bottom row, right)."
+  },
+  {
+   "key": "ship",
+   "file": "ship.svg",
+   "width": 64,
+   "height": 48,
+   "group": "Events",
+   "what": "The colony ship, landing and taking off."
+  },
+  {
+   "key": "pirate-ship",
+   "file": "pirate-ship.svg",
+   "width": 64,
+   "height": 48,
+   "group": "Events",
+   "what": "The pirate ship."
+  },
+  {
+   "key": "pest",
+   "file": "pest.svg",
+   "width": 24,
+   "height": 24,
+   "group": "Events",
+   "what": "The space pest that eats a food plot."
+  },
+  {
+   "key": "meteorite",
+   "file": "meteorite.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Events",
+   "what": "The meteorite falling."
+  },
+  {
+   "key": "radiation",
+   "file": "radiation.svg",
+   "width": 32,
+   "height": 32,
+   "group": "Events",
+   "what": "The radiation cloud."
+  },
+  {
+   "key": "acid-cloud",
+   "file": "acid-cloud.svg",
+   "width": 64,
+   "height": 32,
+   "group": "Events",
+   "what": "The acid rain cloud, crossing a row."
+  },
+  {
+   "key": "sunspot",
+   "file": "sunspot.svg",
+   "width": 96,
+   "height": 96,
+   "group": "Events",
+   "what": "The sun during sunspot activity."
+  },
+  {
+   "key": "fire",
+   "file": "fire.svg",
+   "width": 48,
+   "height": 48,
+   "group": "Events",
+   "what": "The fire in the store."
+  },
+  {
+   "key": "good-food",
+   "file": "good-food.svg",
+   "width": 48,
+   "height": 48,
+   "group": "Auctions",
+   "what": "The food sign at the top of the status and auction screens."
+  },
+  {
+   "key": "good-energy",
+   "file": "good-energy.svg",
+   "width": 48,
+   "height": 48,
+   "group": "Auctions",
+   "what": "The energy sign at the top of the status and auction screens."
+  },
+  {
+   "key": "good-smithore",
+   "file": "good-smithore.svg",
+   "width": 48,
+   "height": 48,
+   "group": "Auctions",
+   "what": "The smithore sign at the top of the status and auction screens."
+  },
+  {
+   "key": "good-crystite",
+   "file": "good-crystite.svg",
+   "width": 48,
+   "height": 48,
+   "group": "Auctions",
+   "what": "The crystite sign at the top of the status and auction screens."
+  },
+  {
+   "key": "good-land",
+   "file": "good-land.svg",
+   "width": 48,
+   "height": 48,
+   "group": "Auctions",
+   "what": "The land auction sign."
+  },
+  {
+   "key": "store-booth",
+   "file": "store-booth.svg",
+   "width": 64,
+   "height": 48,
+   "group": "Auctions",
+   "what": "The store's booth at the top of a goods auction."
+  }
+ ]
+}
