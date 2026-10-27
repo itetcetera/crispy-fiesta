@@ -22,25 +22,36 @@ public static class RoundEvents
     /// <summary>Draws one card from the deck (without replacement) and applies it.</summary>
     public static RoundEventResult? Run(GameState g, IRandomSource rng)
     {
+        int x = Draw(g, rng);
+        return x < 0 ? null : Apply(g, rng, (RoundEventKind)x);
+    }
+
+    /// <summary>roundEvent ($7B28): one card from the deck, taken out; -1 if its count was already 0
+    /// (unreachable in play: the original then only shows the production).</summary>
+    public static int Draw(GameState g, IRandomSource rng)
+    {
         int n = 0;
         Span<byte> deck = stackalloc byte[32];
         for (int e = 7; e >= 0; e--)
             for (int y = g.RoundEventsProb[e]; y != 0; y--) deck[n++] = (byte)e;
         int x = deck[rng.Below((byte)n)];
-        if (g.RoundEventsProb[x] == 0) return null; // unreachable in play: the original just redraws the map
+        if (g.RoundEventsProb[x] == 0) return -1;
         g.RoundEventsProb[x]--;
-        return (RoundEventKind)x switch
-        {
-            RoundEventKind.PestAttack => PestAttack(g, rng),
-            RoundEventKind.PirateShip => PirateShip(g),
-            RoundEventKind.AcidRain => AcidRain(g, rng),
-            RoundEventKind.Planetquake => Planetquake(g, rng),
-            RoundEventKind.Sunspots => Sunspots(g),
-            RoundEventKind.Meteorite => Meteorite(g, rng),
-            RoundEventKind.Radiation => Radiation(g, rng),
-            _ => FireInStore(g),
-        };
+        return x;
     }
+
+    /// <summary>The event's effect on the game.</summary>
+    public static RoundEventResult Apply(GameState g, IRandomSource rng, RoundEventKind kind) => kind switch
+    {
+        RoundEventKind.PestAttack => PestAttack(g, rng),
+        RoundEventKind.PirateShip => PirateShip(g),
+        RoundEventKind.AcidRain => AcidRain(g, rng),
+        RoundEventKind.Planetquake => Planetquake(g, rng),
+        RoundEventKind.Sunspots => Sunspots(g),
+        RoundEventKind.Meteorite => Meteorite(g, rng),
+        RoundEventKind.Radiation => Radiation(g, rng),
+        _ => FireInStore(g),
+    };
 
     /// <summary>$78CB: a random producing food plot of 1st or 2nd place loses all its food.</summary>
     public static RoundEventResult PestAttack(GameState g, IRandomSource rng)

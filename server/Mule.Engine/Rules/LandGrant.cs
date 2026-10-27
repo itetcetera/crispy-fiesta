@@ -70,7 +70,8 @@ public static class LandGrant
         ChooseCpuPlots(g, game.Rng, selected);
         game.Emit(new TitleEvent("LAND GRANT"));
         game.Emit(new MessageEvent("PRESS YOUR BUTTON TO SELECT A PLOT."));
-        yield return game.Frames(intro);
+        yield return game.Frames(game.Think?.Invoke("grant intro") ?? intro);
+        game.Trace?.Invoke("grant wait");
         yield return game.WaitJiffyLevel();
         yield return game.WaitSoundThenBeep();
         yield return game.WaitJiffy(6);

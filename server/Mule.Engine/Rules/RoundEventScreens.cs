@@ -1,0 +1,382 @@
+using System.Collections;
+using Mule.Engine.Core;
+using Mule.Engine.Flow;
+
+namespace Mule.Engine.Rules;
+
+/// <summary>A step of a round event's animation, for the client: what moves, and where (screen units).</summary>
+public sealed record RoundEventStepEvent(RoundEventKind Kind, int Step, int X = 0, int Y = 0) : GameEvent;
+
+/// <summary>A ship on the map: the transport (or the pirates) landing or taking off, at x.</summary>
+public sealed record ShipEvent(bool Pirates, bool TakeOff, byte X) : GameEvent;
+
+/// <summary>
+/// The round events as the original shows them ($722E-$8092): each one's animation and waits, and when it
+/// shows the production (animMapProd) relative to its effect. The effects themselves are in <see cref="RoundEvents"/>.
+/// </summary>
+public static class RoundEventScreens
+{
+    static readonly byte[] Snapshot7387 =
+    {
+        0x00, 0x0C, 0x18, 0x24, 0x30, 0x3C, 0x48, 0x54, 0x60,   // $7387
+        0x00, 0x0A, 0x14, 0x1E, 0x28, 0x32, 0x3C, 0x46, 0x50,   // $7390
+        0x50, 0x53, 0x60, 0x62, 0x71, 0x74, 0x78, 0x7A, 0x7B,   // $7399: the ship's x, by step
+        0x58, 0x5B, 0x66, 0x6A, 0x6E, 0x71, 0x78, 0x7A, 0x7B,   // $73A2
+    };
+
+    // The pest's path ($775F: y steps, halved; $7766: x steps), read by the step counter 20..1.
+    static readonly byte[] PestPath =
+    {
+        0xFF, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF, 0x02, 0x01, 0x02, 0x02, 0x01, 0x02, 0x02, 0x00, 0x01,
+        0xFF, 0x00, 0xFF, 0x01, 0x00, 0xFF, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFF,
+    };
+
+    // Frames of the original's CPU-bound animations (the meteorite's flight, the radiation's forty
+    // jumps), measured on the original; the frames they take vary with the cycle they start on.
+    // Fitted over 40 games of each: within a frame for the meteorite, two for the radiation.
+    static int MeteoriteFrames(int steps) => (int)Math.Round(steps * 0.55);
+    static int RadiationFrames(int totalSteps) => (int)Math.Round(26 + totalSteps * 0.233);
+
+    /// <summary>roundEvent ($7B28): a card, its effect and animation, and the production.</summary>
+    public static IEnumerable Run(Game game)
+    {
+        var g = game.State;
+        var rng = game.Rng;
+        int x = RoundEvents.Draw(g, rng);
+        if (x < 0)
+        {
+            game.Emit(new RoundEventShownEvent(null));
+            yield return GameLoop.AnimMapProd(game);
+            yield break;
+        }
+        var kind = (RoundEventKind)x;
+        switch (kind)
+        {
+            case RoundEventKind.PestAttack: yield return Pest(game); break;
+            case RoundEventKind.PirateShip: yield return Pirates(game); break;
+            case RoundEventKind.AcidRain: yield return AcidRain(game); break;
+            case RoundEventKind.Planetquake: yield return Planetquake(game); break;
+            case RoundEventKind.Sunspots: yield return Sunspots(game); break;
+            case RoundEventKind.Meteorite: yield return Meteorite(game); break;
+            case RoundEventKind.Radiation: yield return Radiation(game); break;
+            default: yield return Fire(game); break;
+        }
+    }
+
+    static RoundEventResult Apply(Game game, RoundEventKind kind)
+    {
+        var r = RoundEvents.Apply(game.State, game.Rng, kind);
+        game.Emit(new RoundEventShownEvent(r));
+        return r;
+    }
+
+    /// <summary>$78CB: the production first; then a pest crawls in (handler $06, v07) and eats the plot's
+    /// food one unit a bite, fifteen frames after each bite starts.</summary>
+    static IEnumerable Pest(Game game)
+    {
+        var g = game.State;
+        var v = game.Vbi;
+        yield return GameLoop.AnimMapProd(game);
+        var before = g.PlotsProd.ToArray();
+        var r = Apply(game, RoundEventKind.PestAttack);
+        if (!r.Shown) yield break;
+        int plot = r.Plot;
+        int food = before[plot];
+        game.Emit(new TitleEvent("PEST ATTACK"));
+        // Six segments, head first ($9F x, $89 y); the seventh slot is what shifts out.
+        var px = new byte[7];
+        var py = new byte[7];
+        px[0] = (byte)(56 + plot % 9 * 16 + 13);
+        py[0] = (byte)(44 + plot / 9 * 32 - 3);
+        byte count = 8, steps = 0x14, seg = 7, dir = 0, bite = 0, pitch = 0; // $A9 $AB $D9 $DB $DD $DC
+        byte end = (byte)(food + 6); // $88
+        v.Handler = () =>
+        {
+            if (bite == 0 && seg == 0 && steps < end && steps >= 6) { pitch = 0x5F; bite = 2; }
+            if (bite == 2)
+            {
+                pitch += 0x14;
+                if (pitch == 0xFF) bite = 1;
+            }
+            if (bite == 1)
+            {
+                byte a = (byte)(pitch - 0x14);
+                if (a == 0x5F) { bite = 0; pitch = 0; }
+                else pitch = a;
+            }
+            if (--count != 0) return;
+            count = 6;
+            int s;
+            bool shift = false;
+            if (px[5] == 0)
+            {
+                // Coming in: the tail is not on screen yet.
+                seg--;
+                s = seg;
+                if ((s & 0x80) != 0) { s = 0; seg = 0; dir = 0; }
+                shift = true;
+            }
+            else
+            {
+                s = -1;
+                if (dir != 0)
+                {
+                    s = seg - 1;
+                    if (s < 0) dir = 0;
+                }
+                if (s < 0)
+                {
+                    s = seg + 1;
+                    if (s == 6) { dir = 1; shift = true; }
+                }
+            }
+            if (shift)
+            {
+                for (int k = 5; k >= 0; k--) { px[k + 1] = px[k]; py[k + 1] = py[k]; }
+                px[0] = (byte)(px[0] + PestPath[7 + steps]);
+                py[0] = (byte)(py[0] + 2 * PestPath[steps]);
+                steps--;
+            }
+            seg = (byte)s;
+            game.Emit(new RoundEventStepEvent(RoundEventKind.PestAttack, seg, px[0], py[0]));
+        };
+        // loc_7949: a unit goes fifteen frames after each bite starts.
+        int left = food;
+        while (steps != 0)
+        {
+            if (bite == 0) { yield return null; continue; }
+            yield return game.WaitJiffy(15);
+            left--;
+            game.Emit(new ProductionShownEvent(plot, left));
+        }
+        v.Handler = null;
+        // sub_7E87: the plot flashes (handler $0B, v12: a step every three frames after six, eight steps).
+        yield return Flash(game);
+    }
+
+    static IEnumerable Flash(Game game)
+    {
+        var v = game.Vbi;
+        byte step = 1, count = 6;
+        v.Handler = () =>
+        {
+            if (--count != 0) return;
+            count = 3;
+            if (step == 0) return;
+            if (++step == 9) { step = 0; v.Handler = null; }
+        };
+        while (step != 0) yield return null;
+    }
+
+    /// <summary>$76F0: the production; the pirate ship lands, every crystite plot loses its output one at
+    /// a time (six frames each), and the ship takes off.</summary>
+    static IEnumerable Pirates(Game game)
+    {
+        var g = game.State;
+        yield return GameLoop.AnimMapProd(game);
+        game.Emit(new TitleEvent("PIRATE SHIP"));
+        byte exp = (byte)((g.Level == 2 ? Good.Crystite : Good.Smithore) + 1);
+        var hit = new List<int>();
+        for (int x = 44; x >= 0; x--) if (g.PlotsExp[x] == exp) hit.Add(x);
+        g.AiMode = 1;
+        yield return ShipLand(game, true);
+        Apply(game, RoundEventKind.PirateShip);
+        foreach (int x in hit)
+        {
+            game.Emit(new ProductionShownEvent(x, 0));
+            yield return game.WaitJiffy(6);
+        }
+        yield return game.WaitJiffyLevel();
+        yield return ShipTakeOff(game, true);
+    }
+
+    /// <summary>animTransportShipLand ($76D4): the ship is back after the last round.</summary>
+    public static IEnumerable TransportShipLand(Game game)
+    {
+        var g = game.State;
+        game.Emit(new TitleEvent("TRANSPORT SHIP"));
+        g.AiMode = 0; // sub_76AF: $B375 tells the handler which ship
+        yield return ShipLand(game, false);
+        yield return GameLoop.AnimMapProd(game);
+    }
+
+    /// <summary>animShipLand ($75F5) with handler $05 (v06): the ship flies in from the right one unit a
+    /// frame, then rises in steps every six frames and lands in nine.</summary>
+    static IEnumerable ShipLand(Game game, bool pirates)
+    {
+        var v = game.Vbi;
+        byte x0 = 0xF7, x1 = 0xFF, step = 0, count = 0x0A, wait = 0x0A; // $9F $A0 $AB $A9 $D9
+        v.Handler = () =>
+        {
+            if (step == 0)
+            {
+                if ((x0 | x1) == 0) { step = 9; x1 = 8; return; }
+                if (x0 != 0) x0--;
+                if (x1 != 0) x1--;
+                return;
+            }
+            if (--count != 0) return;
+            count = 6;
+            if (x0 < 0x4E) { x0++; x1++; game.Emit(new ShipEvent(pirates, false, x0)); return; }
+            x0 = Snapshot7387[18 + 9 - step];
+            game.Emit(new ShipEvent(pirates, false, x0));
+            if (--step == 0) { count = 0xFF; wait = 0; }
+        };
+        while (wait != 0) yield return null;
+        v.Handler = null;
+    }
+
+    /// <summary>anipShipTakeOff ($7674): back up the nine steps every eight frames, then away left one
+    /// unit every eight frames.</summary>
+    static IEnumerable ShipTakeOff(Game game, bool pirates)
+    {
+        var v = game.Vbi;
+        byte x0 = 0x7B, step = 0, count = 0x0A, wait = 0x0A;
+        v.Handler = () =>
+        {
+            if (--count != 0) return;
+            count = 8;
+            if (step == 0xF7)
+            {
+                wait = x0;
+                if (x0 != 0) x0--;
+            }
+            else
+            {
+                x0 = Snapshot7387[18 + (byte)(step + 8)];
+                step--;
+            }
+            game.Emit(new ShipEvent(pirates, true, x0));
+        };
+        while (wait != 0) yield return null;
+        v.Handler = null;
+    }
+
+    /// <summary>$7A72: a cloud crosses the screen (handler $08, v09: a unit every six frames), then the
+    /// effect and the production.</summary>
+    static IEnumerable AcidRain(Game game)
+    {
+        var v = game.Vbi;
+        game.Emit(new TitleEvent("ACID RAIN STORM"));
+        game.Emit(new MessageEvent("FOOD OUTPUT UP, ENERGY OUTPUT DOWN."));
+        var r = Apply(game, RoundEventKind.AcidRain);
+        byte count = 5, x = 0x14;
+        v.Handler = () =>
+        {
+            if (--count != 0) return;
+            count = 6;
+            x++;
+            game.Emit(new RoundEventStepEvent(RoundEventKind.AcidRain, r.Row, x));
+        };
+        while (x < 0xDC) yield return null;
+        v.Handler = null;
+        yield return GameLoop.AnimMapProd(game);
+    }
+
+    /// <summary>$722E: sixteen shakes nineteen frames apart, then the effect and the production.</summary>
+    static IEnumerable Planetquake(Game game)
+    {
+        game.Emit(new TitleEvent("PLANETQUAKE"));
+        game.Emit(new MessageEvent("MINING PRODUCTION HALF OF NORMAL."));
+        var r = Apply(game, RoundEventKind.Planetquake);
+        for (int k = 16; k > 0; k--)
+        {
+            game.Emit(new RoundEventStepEvent(RoundEventKind.Planetquake, k, r.MountainQuarter));
+            // sub_5E1B: the shake is drawn at the next frame's line 242, then nineteen frames.
+            yield return null;
+            yield return game.WaitJiffy(19);
+        }
+        yield return GameLoop.AnimMapProd(game);
+    }
+
+    /// <summary>$7C12: the effect, 250 frames and the level wait, then the production.</summary>
+    static IEnumerable Sunspots(Game game)
+    {
+        game.Emit(new TitleEvent("SUNSPOT ACTIVITY"));
+        game.Emit(new MessageEvent("ENERGY OUTPUT IS UP."));
+        game.Vbi.Timers[0] = 0x96;
+        Apply(game, RoundEventKind.Sunspots);
+        yield return game.WaitJiffy(250);
+        yield return game.WaitJiffyLevel();
+        yield return GameLoop.AnimMapProd(game);
+    }
+
+    /// <summary>$7C95: the meteorite falls on its plot (a step a cycle-bound loop pass, each drawing it
+    /// with two random masks), fifteen ten-frame waits, then the effect and the production.</summary>
+    static IEnumerable Meteorite(Game game)
+    {
+        var g = game.State;
+        game.Emit(new TitleEvent("METEORITE STRIKE"));
+        if (g.Level == 2) game.Emit(new MessageEvent("METEOR MAKES NEW CRYSTITE DEPOSIT."));
+        var r = Apply(game, RoundEventKind.Meteorite);
+        int px = 56 + r.Plot % 9 * 16, py = 44 + r.Plot / 9 * 32;
+        // sub_3974: a line from ($BE, $BE) to the plot; its length is the larger difference.
+        int steps = Math.Max(Math.Abs(py + 12 - 0xBE), Math.Abs(px + 7 - 0xBE));
+        yield return game.WaitJiffy(0x28);
+        for (int k = steps; k > 0; k--)
+        {
+            // sub_7DCC: each step redraws both halves (sub_7C71, a random mask per line).
+            for (int i = 0; i < 30; i++) game.Rng.NextByte();
+        }
+        yield return game.Frames(game.Think?.Invoke($"meteorite {steps}") ?? MeteoriteFrames(steps));
+        game.Trace?.Invoke("meteorite");
+        for (int k = 15; k > 0; k--) yield return game.WaitJiffy(10);
+        for (int i = 0; i < 30; i++) game.Rng.NextByte();
+        game.Emit(new RoundEventStepEvent(RoundEventKind.Meteorite, 0, px, py));
+        yield return GameLoop.AnimMapProd(game);
+    }
+
+    /// <summary>$7EA6: the mule jumps about its plot forty times (each jump a random spot and a random
+    /// 0-19 steps, cycle-bound, then a frame), then it is lost and the production shows.</summary>
+    static IEnumerable Radiation(Game game)
+    {
+        var rng = game.Rng;
+        var r = Apply(game, RoundEventKind.Radiation);
+        if (!r.Shown)
+        {
+            yield return GameLoop.AnimMapProd(game);
+            yield break;
+        }
+        game.Emit(new TitleEvent("RADIATION"));
+        game.Emit(new MessageEvent("MULE GOES CRAZY!"));
+        int total = 0;
+        for (int k = 40; k > 0; k--)
+        {
+            rng.NextByte(); rng.NextByte(); rng.NextByte();
+            total += rng.Below(20);
+        }
+        yield return game.Frames(game.Think?.Invoke($"radiation {total}") ?? RadiationFrames(total));
+        game.Trace?.Invoke("radiation");
+        // sub_7FC6 and loc_6C9B: the mule walks off sideways, away from the middle, a step every six
+        // frames (handler $0D), until it leaves the map.
+        var v = game.Vbi;
+        byte mx = (byte)(56 + r.Plot % 9 * 16 + 5), phase = 0;
+        v.Handler = () =>
+        {
+            if (++phase != 6) return;
+            phase = 0;
+            mx = mx < 0x7B ? (byte)(mx - 4) : (byte)(mx + 4);
+            game.Emit(new RoundEventStepEvent(RoundEventKind.Radiation, 0, mx));
+        };
+        while (mx >= 0x28 && mx < 0xDC) yield return null;
+        v.Handler = null;
+        yield return GameLoop.AnimMapProd(game);
+    }
+
+    /// <summary>$7FF3: the production first; the store burns (four 60-frame flickers), 255 frames and the
+    /// level wait. No production after it.</summary>
+    static IEnumerable Fire(Game game)
+    {
+        yield return GameLoop.AnimMapProd(game);
+        game.Emit(new TitleEvent("FIRE IN STORE"));
+        game.Emit(new MessageEvent("ALL THE STOCK IN THE STORE IS LOST."));
+        Apply(game, RoundEventKind.FireInStore);
+        for (int k = 4; k > 0; k--)
+        {
+            yield return game.WaitJiffy(30);
+            yield return game.WaitJiffy(30);
+        }
+        yield return game.WaitJiffy(255);
+        yield return game.WaitJiffyLevel();
+    }
+}

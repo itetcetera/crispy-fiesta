@@ -200,7 +200,7 @@ public static class LandAuction
     }
 
     /// <summary>loc_30A2: waits <paramref name="ticks"/> timer ticks, cut short once every human has pressed.</summary>
-    static IEnumerable WaitButtonsTick(Game game, byte ticks)
+    internal static IEnumerable WaitButtonsTick(Game game, byte ticks)
     {
         var g = game.State;
         var v = game.Vbi;
@@ -241,6 +241,7 @@ public static class LandAuction
             }
             cpu--;
         } while ((cpu & 0x80) == 0);
+        g.PlotsTemp3[16] = cpu; // the loop's counter lives in plotsTemp3+$10
     }
 
     static void SetGoodsQualityForLandAuction(GameState g)

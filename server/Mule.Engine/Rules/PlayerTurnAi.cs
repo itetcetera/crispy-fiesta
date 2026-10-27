@@ -149,7 +149,7 @@ public static partial class PlayerTurn
 
     /// <summary>expandKnownCrystite ($3665): the CPU guesses the crystite around the medium and high
     /// finds it knows; a guess only replaces a lower one.</summary>
-    static void ExpandKnownCrystite(GameState g)
+    internal static void ExpandKnownCrystite(GameState g)
     {
         bool any = false;
         for (int x = 44; x >= 0; x--)

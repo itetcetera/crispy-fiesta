@@ -16,6 +16,7 @@ public static class Scoring
         g.TotalScore = 0;
         for (int p = 3; p >= 0; p--)
         {
+            g.PlayersColor[p] = (byte)((g.PlayersColor[p] & 0xF0) | 4);
             int money = g.PlayersCash[p];
             int land = g.PlayersNbLands[p] * 500;
             for (int outfit = 4; outfit >= 1; outfit--)
