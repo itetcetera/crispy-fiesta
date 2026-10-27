@@ -15,6 +15,7 @@ screen geometry, message text).
 | Mode | Tournament only |
 | Quirks | Every verified original quirk/bug is kept; unreachable ones are left out |
 | Exception | A player worth exactly 0 is ranked normally (last) |
+| Screen saver | Left out (2026-10-27): the original freezes the game after ~9 minutes without a button press ($5C98, TV burn-in guard); online games never freeze |
 | Private-offer land sale | Included (human sellers only, as in the original) |
 | Timing | NTSC, 60 ticks per second |
 | CPU players | In scope (doc section 9); empty seats are CPUs |

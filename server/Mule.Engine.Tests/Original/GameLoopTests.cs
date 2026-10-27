@@ -100,7 +100,7 @@ public class GameLoopTests
             if (c.PC == 0x5BB5)
             {
                 // The screen saver (after $80 x 256 frames without a button held, $5C98) is left out
-                // of the port for now (asked Marcus 2026-10-27): as if someone held a button now and then.
+                // of the port (Marcus, 2026-10-27): as if someone held a button now and then.
                 m.Ram[0x4D] = 0;
                 if (Progress != null && vbi - lastPoint > 20_000)
                 {
