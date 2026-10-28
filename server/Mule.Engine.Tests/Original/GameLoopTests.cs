@@ -68,12 +68,16 @@ public class GameLoopTests
     /// <summary>When set, the original's picture is saved there as PNGs: shortly after each phase point,
     /// and every 300 frames (reference shots for the client's screens).</summary>
     static readonly string? Shots = Environment.GetEnvironmentVariable("SHOTS");
+    /// <summary>SHOT_EVERY=n: with SHOTS, also a shot every n frames from production to the buttons
+    /// (the round's events and ships, for tools/extract_assets.py).</summary>
+    static readonly int ShotEvery = int.Parse(Environment.GetEnvironmentVariable("SHOT_EVERY") ?? "0");
 
     static Run RunOriginal(GameState g, int seed, bool whole = false)
     {
         var m = new MachineGame();
         if (Shots != null) { Directory.CreateDirectory(Shots); m.M.EnablePicture(); }
         var shotAt = new SortedDictionary<long, string>();
+        bool dense = false;
         StateMapper.ToRam(g, m.Ram);
         m.Ram[0xC1] = 0xFF; m.Ram[0x4E] = 0; m.Ram[0x9E] = 0xFF; m.Ram[0xC8] = 0;
         m.M.CallRoutine(OriginalGame.Sym("initBB00ToBFFF"));
@@ -133,12 +137,17 @@ public class GameLoopTests
                 }
                 if (Shots != null)
                 {
-                    if (vbi % 300 == 0) shotAt.TryAdd(vbi, $"t{vbi}");
+                    if (vbi % 300 == 0 || dense && vbi % ShotEvery == 0) shotAt.TryAdd(vbi, $"t{vbi}");
                     if (shotAt.Remove(vbi, out var name))
                     {
-                        File.WriteAllLines(Path.Combine(Shots, $"s{seed}_{vbi:D6}_{name.Replace(' ', '-')}.txt"), m.M.DebugDisplayList());
+                        File.WriteAllLines(Path.Combine(Shots, $"s{seed}_{vbi:D6}_{name.Replace(' ', '-')}.txt"), m.M.DebugDisplayList()
+                            .Append($"plots {Convert.ToHexString(m.Ram.AsSpan(0xB000, 45))} exp {Convert.ToHexString(m.Ram.AsSpan(0xB02D, 45))}"));
                         File.AppendAllText(Path.Combine(Shots, "pm.txt"), $"{vbi} {name} {m.M.DebugPm} pm {string.Join(",", Enumerable.Range(0, 5).Select(n => m.Ram.AsSpan(0xB800 + 0x300 + n * 0x100, 0x100).ToArray().Count(b => b != 0)))}\n");
-                        Png.Write(Path.Combine(Shots, $"s{seed}_{vbi:D6}_{name.Replace(' ', '-')}.png"), m.M.Picture!, Mule.Atari.Atari800.PictureWidth, Mule.Atari.Atari800.PictureHeight);
+                        string shot = Path.Combine(Shots, $"s{seed}_{vbi:D6}_{name.Replace(' ', '-')}");
+                        const int W = Mule.Atari.Atari800.PictureWidth, H = Mule.Atari.Atari800.PictureHeight;
+                        Png.Write(shot + ".png", m.M.Picture!, W, H);
+                        Png.Write(shot + "_pf.png", m.M.PicturePlayfield!, W, H);
+                        Png.Write(shot + "_pm.png", m.M.PictureSprites!, W, H, alpha: true);
                     }
                 }
                 string snd = Convert.ToHexString(m.M.Pokey);
@@ -184,7 +193,7 @@ public class GameLoopTests
             if (c.PC == 0x6F19) { message = Decode(m.Ram); messages.Add(message); }
             if (c.PC == 0x6F60) ends.Add(StateMapper.FromRam(m.Ram));
             if (c.PC == 0x7D35 && events[^1].Item2 == "meteorite") return; // the fifteen waits after the fall
-            if (Checkpoints.TryGetValue(c.PC, out var what)) { lastPoint = vbi; if (Progress != null && what is "round" or "score end") File.AppendAllText(Progress, $"original {what} {vbi} round {m.Ram[0xB1]}\n"); events.Add((vbi, what)); if (Shots != null) { shotAt.TryAdd(vbi + 20, what); shotAt.TryAdd(vbi + 120, what + "+120"); } clocks.Add($"{what} {m.Ram[0x14]} {m.Ram[0xC3]} {m.Ram[0xC4]} {m.Ram[0xC5]} {m.Ram[0xC6]}"); temps.Add($"{what}:{string.Join(",", m.Ram.AsSpan(0xB42D, 45).ToArray())}"); }
+            if (Checkpoints.TryGetValue(c.PC, out var what)) { lastPoint = vbi; if (ShotEvery > 0 && what is "production" or "buttons") dense = what == "production"; if (Progress != null && what is "round" or "score end") File.AppendAllText(Progress, $"original {what} {vbi} round {m.Ram[0xB1]}\n"); events.Add((vbi, what)); if (Shots != null) { shotAt.TryAdd(vbi + 20, what); shotAt.TryAdd(vbi + 120, what + "+120"); } clocks.Add($"{what} {m.Ram[0x14]} {m.Ram[0xC3]} {m.Ram[0xC4]} {m.Ram[0xC5]} {m.Ram[0xC6]}"); temps.Add($"{what}:{string.Join(",", m.Ram.AsSpan(0xB42D, 45).ToArray())}"); }
         };
         // The round ends at the score: return there instead of going on to the next round.
         if (!whole) m.Ram[0x4845] = 0x60;

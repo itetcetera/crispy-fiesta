@@ -2,32 +2,34 @@ using System.IO.Compression;
 
 namespace Mule.Engine.Tests.Original;
 
-/// <summary>A minimal PNG writer (8-bit RGB, no filtering) for reference shots of the original.</summary>
+/// <summary>A minimal PNG writer (8-bit RGB or RGBA, no filtering) for reference shots of the original.</summary>
 static class Png
 {
-    public static void Write(string path, uint[] rgb, int width, int height, int scale = 2)
+    /// <summary>Writes <paramref name="rgb"/> (0xRRGGBB, or 0xAARRGGBB with <paramref name="alpha"/>).</summary>
+    public static void Write(string path, uint[] rgb, int width, int height, int scale = 2, bool alpha = false)
     {
-        int w = width * scale, h = height * scale;
-        var raw = new byte[h * (w * 3 + 1)];
+        int w = width * scale, h = height * scale, n = alpha ? 4 : 3;
+        var raw = new byte[h * (w * n + 1)];
         for (int y = 0; y < h; y++)
         {
-            int o = y * (w * 3 + 1);
+            int o = y * (w * n + 1);
             for (int x = 0; x < w; x++)
             {
                 uint c = rgb[(y / scale) * width + x / scale];
-                raw[o + 1 + x * 3] = (byte)(c >> 16);
-                raw[o + 2 + x * 3] = (byte)(c >> 8);
-                raw[o + 3 + x * 3] = (byte)c;
+                raw[o + 1 + x * n] = (byte)(c >> 16);
+                raw[o + 2 + x * n] = (byte)(c >> 8);
+                raw[o + 3 + x * n] = (byte)c;
+                if (alpha) raw[o + 4 + x * n] = (byte)(c >> 24);
             }
         }
         using var f = File.Create(path);
         f.Write(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
         var hdr = new byte[13];
         Be(hdr, 0, (uint)w); Be(hdr, 4, (uint)h);
-        hdr[8] = 8; hdr[9] = 2;
+        hdr[8] = 8; hdr[9] = (byte)(alpha ? 6 : 2);
         Chunk(f, "IHDR", hdr);
         var z = new MemoryStream();
-        using (var zs = new ZLibStream(z, CompressionLevel.Optimal, true)) zs.Write(raw);
+        using (var zs = new ZLibStream(z, CompressionLevel.Fastest, true)) zs.Write(raw);
         Chunk(f, "IDAT", z.ToArray());
         Chunk(f, "IEND", Array.Empty<byte>());
     }

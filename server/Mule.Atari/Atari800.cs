@@ -272,6 +272,8 @@ public sealed class Atari800 : IBus
             if (Picture != null)
             {
                 Array.Copy(_drawing, Picture, Picture.Length);
+                Array.Copy(_drawingPf, PicturePlayfield!, Picture.Length);
+                Array.Copy(_drawingPm, PictureSprites!, Picture.Length);
                 for (int i = 0; i < Lines; i++) _lineColors[i].CopyTo(LineColors[i], 0);
             }
         }
@@ -570,7 +572,11 @@ public sealed class Atari800 : IBus
     /// <summary>The last whole frame as 0xRRGGBB pixels, once <see cref="EnablePicture"/> was called;
     /// for reference shots of the original's screens (tests only, not the game).</summary>
     public uint[]? Picture { get; private set; }
-    uint[] _drawing = Array.Empty<uint>();
+    /// <summary>The same frame without the players and missiles.</summary>
+    public uint[]? PicturePlayfield { get; private set; }
+    /// <summary>The same frame's players and missiles alone, as 0xAARRGGBB (0 where none shows).</summary>
+    public uint[]? PictureSprites { get; private set; }
+    uint[] _drawing = Array.Empty<uint>(), _drawingPf = Array.Empty<uint>(), _drawingPm = Array.Empty<uint>();
     readonly byte[] _hires = new byte[456];
     bool _lineHires;
 
@@ -578,6 +584,10 @@ public sealed class Atari800 : IBus
     {
         Picture = new uint[PictureWidth * PictureHeight];
         _drawing = new uint[PictureWidth * PictureHeight];
+        PicturePlayfield = new uint[PictureWidth * PictureHeight];
+        _drawingPf = new uint[PictureWidth * PictureHeight];
+        PictureSprites = new uint[PictureWidth * PictureHeight];
+        _drawingPm = new uint[PictureWidth * PictureHeight];
     }
 
     /// <summary>Composes the current scanline: playfield (hi-res text as playfield 1's luminance on
@@ -599,24 +609,26 @@ public sealed class Atari800 : IBus
             byte c = pf == 0 ? _color[8] : _color[3 + pf];
             if (_lineHires && x >= PlayfieldLeft && x < PlayfieldLeft + PlayfieldWidth)
                 c = _hires[PictureLeft * 2 + px] != 0 ? (byte)((_color[6] & 0xF0) | (_color[5] & 0x0E)) : _color[6];
+            _drawingPf[y * PictureWidth + px] = Rgb(c);
+            uint sprite = 0;
             byte m = _pmMask[x];
             if (m != 0)
             {
                 int pl = m & 0x0F, mi = m >> 4;
-                if (fifth && mi != 0) { if (pf == 0 || (_prior & 4) == 0) c = _color[7]; mi = 0; }
+                if (fifth && mi != 0) { sprite = 0xFF000000 | Rgb(_color[7]); if (pf == 0 || (_prior & 4) == 0) c = _color[7]; mi = 0; }
                 pl |= mi; // a missile shows in its player's color
                 if (pl != 0)
                 {
                     int n = (pl & 1) != 0 ? 0 : (pl & 2) != 0 ? 1 : (pl & 4) != 0 ? 2 : 3;
+                    byte sc = _color[n];
+                    if ((_prior & 0x20) != 0 && (n == 0 && (pl & 2) != 0 || n == 2 && (pl & 8) != 0)) sc |= _color[n + 1];
+                    sprite = 0xFF000000 | Rgb(sc);
                     bool pfFirst = pf != 0 && ((_prior & 4) != 0 || ((_prior & 8) != 0 && pf <= 2) || ((_prior & 2) != 0 && n >= 2));
-                    if (!pfFirst)
-                    {
-                        c = _color[n];
-                        if ((_prior & 0x20) != 0 && (n == 0 && (pl & 2) != 0 || n == 2 && (pl & 8) != 0)) c |= _color[n + 1];
-                    }
+                    if (!pfFirst) c = sc;
                 }
             }
             _drawing[y * PictureWidth + px] = Rgb(c);
+            _drawingPm[y * PictureWidth + px] = sprite;
         }
     }
 

@@ -175,7 +175,8 @@ export class GameScene extends Phaser.Scene {
       if (owner < 4) {
         this.top.lineStyle(4, this.color(owner)).strokeRect(x + 3, y + 3, PLOT_W - 6, PLOT_H - 6);
         const exp = this.v("PlotsExp", p);
-        if (exp >= 1 && exp <= 4) this.img(`icon-${GOOD_KEYS[exp - 1]}`, x + 8, y + 8);
+        // The factory's sign in the plot's right half, rows 2 and 3, in the owner's colour.
+        if (exp >= 1 && exp <= 4) this.img(`icon-${GOOD_KEYS[exp - 1]}`, x + 32, y + 16, 1, { tint: this.color(owner) });
       }
       const units = m.production.get(p);
       if (units !== undefined) this.say(String(units), x + PLOT_W - 10, y + PLOT_H - 8, 18, "#fff", 1, 1);
@@ -184,13 +185,18 @@ export class GameScene extends Phaser.Scene {
       const x = px(plotX(m.grantCursor)), y = py(plotY(m.grantCursor));
       this.top.lineStyle(5, 0xffffff).strokeRect(x, y, PLOT_W, PLOT_H);
     }
-    if (m.ship) this.img(m.ship.pirates ? "pirate-ship" : "ship", px(m.ship.x), py(plotY(STORE)) + 8);
+    // The ships fly along the store's row, their left edge at player 0.
+    if (m.ship) this.img(m.ship.pirates ? "pirate-ship" : "ship", px(m.ship.x), py(99));
     const step = m.roundStep;
     if (step && ROUND_EVENT_ART[step.kind]) {
       const key = ROUND_EVENT_ART[step.kind];
       if (step.kind === "AcidRain") this.img(key, px(step.x), py(plotY(step.step * COLUMNS)));
-      else if (step.kind === "Sunspots") this.img(key, WIDTH - 110, 4);
-      else if (step.kind === "FireInStore") this.img(key, px(plotX(STORE)) + 8, py(plotY(STORE)) + 8);
+      else if (step.kind === "Sunspots") {
+        // A dot flashes up somewhere on the map each frame, in a random colour.
+        const h = Math.imul(m.tick, 2654435761) >>> 0;
+        this.img(key, 32 + (h % 576), 40 + ((h >>> 10) % 320), 1, { tint: atariColor((h >>> 20) & 0xff) });
+      }
+      else if (step.kind === "FireInStore") this.img(key, px(plotX(STORE)), py(plotY(STORE)) - 4);
       else if (step.x) this.img(key, px(step.x), py(step.y || plotY(STORE)));
     }
     if (m.inTurn && this.v("turnMap") === 1) this.walker(1, py);
@@ -207,7 +213,8 @@ export class GameScene extends Phaser.Scene {
     const tint = this.color(cp);
     if (this.v("turnHasMule")) {
       const mx = this.v("turnMuleX"), my = this.v("turnMuleY");
-      this.img("mule", px(mx) + 16 * scale, toY(my) + 16 * scale, scale, { ox: 0.5, oy: 1, flip: this.faces("mule", mx) });
+      const town = toY !== py;
+      this.img(town ? "mule-town" : "mule", px(mx) + 16, toY(my) + (town ? 32 : 16), 1, { ox: 0.5, oy: 1, tint, flip: this.faces("mule", mx) });
     }
     this.img(walkerKey(this.race(cp)), px(x) + 16 * scale, toY(y) + 16 * scale, scale, { ox: 0.5, oy: 1, tint, flip: this.faces("walker", x) });
   }
@@ -256,10 +263,9 @@ export class GameScene extends Phaser.Scene {
     this.g.fillStyle(atariColor(GameScene.BK)).fillRect(0, 0, WIDTH, HEIGHT);
     this.atCentre(title, "w", 31, 0x32);
     this.atCentre(second, "w", 39, 0x72);
-    if (good >= 0 && iconColour) {
-      const key = good === 5 ? "good-land" : `good-${GOOD_KEYS[good] ?? "food"}`;
-      for (const col of [1, 18]) this.img(key, cellX("w", col) + 16, cellY(31), 0.67, { ox: 0.5 });
-    }
+    // The good's sign in both top corners (the land auction has none).
+    if (good >= 0 && good < 4 && iconColour)
+      for (const col of [1, 18]) this.img(`good-${GOOD_KEYS[good]}`, cellX("w", col), cellY(31));
   }
 
   /** The auction screens' message: one 20-column row at line 219, or two from 211 when longer. */
@@ -305,13 +311,15 @@ export class GameScene extends Phaser.Scene {
     else this.auctionTop(`AUCTION #${round}`, GOODS[a.good] ?? "", a.good, true);
     const ink = hiresInk(0x02, 0x08);
     // The store's prices: it sells at the top of the scale and buys at the bottom.
+    // The land office's house sits in the middle of the land auction, on the starting price's line.
+    if (land) this.img("store-booth", 288, py(136));
     if (!land && a.priceEnd) {
       if (a.storeSells) {
         this.at(String(a.priceEnd), "n", 32, 59, ink);
-        this.img("store-booth", cellX("n", 33), py(76), 0.8, { ox: 0.5 });
+        this.img("store-booth", cellX("n", 32), py(76));
       }
       this.at(String(a.priceStart), "n", 4, 163, ink);
-      this.img("store-booth", cellX("n", 5), py(146), 0.8, { ox: 0.5 });
+      this.img("store-booth", cellX("n", 4), py(146));
     }
     // The bidding lines: the best buyer's and the best seller's, dotted across the columns.
     const dots = (line: number, colour: number) => {
@@ -348,9 +356,9 @@ export class GameScene extends Phaser.Scene {
     const buys = this.v("GoodsPrice", good);
     if (buys) {
       this.at(String(buys + 35 * (good === 3 ? 4 : 1)), "n", 32, 51, ink);
-      this.img("store-booth", cellX("n", 33), py(68), 0.8, { ox: 0.5 });
+      this.img("store-booth", cellX("n", 32), py(76));
       this.at(String(buys), "n", 4, 163, ink);
-      this.img("store-booth", cellX("n", 5), py(146), 0.8, { ox: 0.5 });
+      this.img("store-booth", cellX("n", 4), py(146));
     }
     // Each player's bar: a scanline per quarter unit, up to 96, from line 155; the newest bars move a
     // quarter unit a frame from where they were.

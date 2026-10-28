@@ -2,67 +2,67 @@
  "assets": [
   {
    "key": "plain",
-   "file": "plain.svg",
+   "file": "plain.png",
    "width": 64,
    "height": 64,
    "group": "Map",
-   "what": "One plot of plain ground (the map is 9 x 5 plots)."
+   "what": "One plot of plain ground (the map is 9 x 5 plots). From the original (tools/extract_assets.py)."
   },
   {
    "key": "river",
-   "file": "river.svg",
+   "file": "river.png",
    "width": 64,
    "height": 64,
    "group": "Map",
-   "what": "A river plot (the middle column, above and below the store)."
+   "what": "A river plot (the middle column, above and below the store). From the original (tools/extract_assets.py)."
   },
   {
    "key": "store",
-   "file": "store.svg",
+   "file": "store.png",
    "width": 64,
    "height": 64,
    "group": "Map",
-   "what": "The town (the store) in the middle of the map; the walker enters it here."
+   "what": "The town (the store) in the middle of the map; the walker enters it here. From the original (tools/extract_assets.py)."
   },
   {
    "key": "mountain",
-   "file": "mountain.svg",
+   "file": "mountain.png",
    "width": 32,
    "height": 16,
    "group": "Map",
-   "what": "One mountain; the map draws one on each of its 20 bands, 8 scanlines high."
+   "what": "One mountain; the map draws one on each of its 20 bands, 8 scanlines high. From the original (tools/extract_assets.py)."
   },
   {
    "key": "icon-food",
-   "file": "icon-food.svg",
-   "width": 28,
-   "height": 28,
+   "file": "icon-food.png",
+   "width": 32,
+   "height": 32,
    "group": "Map",
-   "what": "The food factory on an improved plot (the output number is drawn beside it)."
+   "what": "The food factory's sign on an improved plot, in its right half; white, tinted with the owner's colour. From the original (tools/extract_assets.py)."
   },
   {
    "key": "icon-energy",
-   "file": "icon-energy.svg",
-   "width": 28,
-   "height": 28,
+   "file": "icon-energy.png",
+   "width": 32,
+   "height": 32,
    "group": "Map",
-   "what": "The energy factory on an improved plot (the output number is drawn beside it)."
+   "what": "The energy factory's sign on an improved plot, in its right half; white, tinted with the owner's colour. From the original (tools/extract_assets.py)."
   },
   {
    "key": "icon-smithore",
-   "file": "icon-smithore.svg",
-   "width": 28,
-   "height": 28,
+   "file": "icon-smithore.png",
+   "width": 32,
+   "height": 32,
    "group": "Map",
-   "what": "The smithore factory on an improved plot (the output number is drawn beside it)."
+   "what": "The smithore factory's sign on an improved plot, in its right half; white, tinted with the owner's colour. From the original (tools/extract_assets.py)."
   },
   {
    "key": "icon-crystite",
-   "file": "icon-crystite.svg",
-   "width": 28,
-   "height": 28,
+   "file": "icon-crystite.png",
+   "width": 32,
+   "height": 32,
    "group": "Map",
-   "what": "The crystite factory on an improved plot (the output number is drawn beside it)."
+   "what": "The crystite factory's sign on an improved plot, in its right half; white, tinted with the owner's colour. From the original (tools/extract_assets.py)."
   },
   {
    "key": "assay-mark",
@@ -202,11 +202,19 @@
   },
   {
    "key": "mule",
-   "file": "mule.svg",
-   "width": 32,
-   "height": 24,
+   "file": "mule.png",
+   "width": 36,
+   "height": 20,
    "group": "Players",
-   "what": "A M.U.L.E. (twice the size in town)."
+   "what": "A M.U.L.E. on the map (facing right; white, tinted with its owner's colour). From the original (tools/extract_assets.py)."
+  },
+  {
+   "key": "mule-town",
+   "file": "mule-town.png",
+   "width": 50,
+   "height": 44,
+   "group": "Players",
+   "what": "A M.U.L.E. on its lead in town (facing right; white, tinted). From the original (tools/extract_assets.py)."
   },
   {
    "key": "wampus",
@@ -218,187 +226,179 @@
   },
   {
    "key": "town-ground",
-   "file": "town-ground.svg",
+   "file": "town-ground.png",
    "width": 384,
    "height": 300,
    "group": "Town",
-   "what": "The town's yard behind the buildings (columns 8 to 31, scanlines 44 to 194; the street runs between the rows)."
+   "what": "The town's yard behind the buildings (columns 8 to 31, scanlines 44 to 194; the street runs between the rows). From the original (tools/extract_assets.py)."
   },
   {
    "key": "bldg-crystite",
-   "file": "bldg-crystite.svg",
+   "file": "bldg-crystite.png",
    "width": 64,
    "height": 64,
    "group": "Town",
-   "what": "The crystite outfitter (top row, first)."
+   "what": "The crystite outfitter (top row, first). From the original (tools/extract_assets.py)."
   },
   {
    "key": "bldg-smithore",
-   "file": "bldg-smithore.svg",
+   "file": "bldg-smithore.png",
    "width": 64,
    "height": 64,
    "group": "Town",
-   "what": "The smithore outfitter (top row, second)."
+   "what": "The smithore outfitter (top row, second). From the original (tools/extract_assets.py)."
   },
   {
    "key": "bldg-energy",
-   "file": "bldg-energy.svg",
+   "file": "bldg-energy.png",
    "width": 64,
    "height": 64,
    "group": "Town",
-   "what": "The energy outfitter (top row, third)."
+   "what": "The energy outfitter (top row, third). From the original (tools/extract_assets.py)."
   },
   {
    "key": "bldg-food",
-   "file": "bldg-food.svg",
+   "file": "bldg-food.png",
    "width": 64,
    "height": 64,
    "group": "Town",
-   "what": "The food outfitter (top row, last)."
+   "what": "The food outfitter (top row, last). From the original (tools/extract_assets.py)."
   },
   {
    "key": "bldg-assay",
-   "file": "bldg-assay.svg",
+   "file": "bldg-assay.png",
    "width": 64,
    "height": 112,
    "group": "Town",
-   "what": "The assay office (bottom row, first)."
+   "what": "The assay office (bottom row, first). From the original (tools/extract_assets.py)."
   },
   {
    "key": "bldg-land",
-   "file": "bldg-land.svg",
+   "file": "bldg-land.png",
    "width": 64,
    "height": 96,
    "group": "Town",
-   "what": "The land office (bottom row, second)."
+   "what": "The land office (bottom row, second). From the original (tools/extract_assets.py)."
   },
   {
    "key": "bldg-pub",
-   "file": "bldg-pub.svg",
+   "file": "bldg-pub.png",
    "width": 64,
    "height": 80,
    "group": "Town",
-   "what": "The pub (bottom row, third)."
+   "what": "The pub (bottom row, third). From the original (tools/extract_assets.py)."
   },
   {
    "key": "bldg-corral",
-   "file": "bldg-corral.svg",
+   "file": "bldg-corral.png",
    "width": 96,
    "height": 160,
    "group": "Town",
-   "what": "The M.U.L.E. corral (bottom row, right), down to the money line; the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain."
+   "what": "The M.U.L.E. corral (bottom row, right), down to the money line; the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain. From the original (tools/extract_assets.py)."
   },
   {
    "key": "ship",
-   "file": "ship.svg",
-   "width": 64,
-   "height": 48,
+   "file": "ship.png",
+   "width": 160,
+   "height": 80,
    "group": "Events",
-   "what": "The colony ship, landing and taking off."
+   "what": "The transport ship, flying left along the store's row (its left edge at x). From the original (tools/extract_assets.py)."
   },
   {
    "key": "pirate-ship",
-   "file": "pirate-ship.svg",
-   "width": 64,
-   "height": 48,
+   "file": "pirate-ship.png",
+   "width": 160,
+   "height": 80,
    "group": "Events",
-   "what": "The pirate ship."
+   "what": "The pirate ship. From the original (tools/extract_assets.py)."
   },
   {
    "key": "pest",
-   "file": "pest.svg",
-   "width": 24,
-   "height": 24,
+   "file": "pest.png",
+   "width": 34,
+   "height": 30,
    "group": "Events",
-   "what": "The space pest that eats a food plot."
+   "what": "The space pest that eats a food plot. From the original (tools/extract_assets.py)."
   },
   {
    "key": "meteorite",
-   "file": "meteorite.svg",
-   "width": 32,
-   "height": 32,
+   "file": "meteorite.png",
+   "width": 136,
+   "height": 84,
    "group": "Events",
-   "what": "The meteorite falling."
+   "what": "The meteorite's blast. From the original (tools/extract_assets.py)."
   },
   {
    "key": "radiation",
-   "file": "radiation.svg",
+   "file": "radiation.png",
    "width": 32,
-   "height": 32,
+   "height": 16,
    "group": "Events",
-   "what": "The radiation cloud."
+   "what": "The radiation zigzag over the mule's plot. From the original (tools/extract_assets.py)."
   },
   {
    "key": "acid-cloud",
-   "file": "acid-cloud.svg",
-   "width": 64,
-   "height": 32,
+   "file": "acid-cloud.png",
+   "width": 72,
+   "height": 64,
    "group": "Events",
-   "what": "The acid rain cloud, crossing a row."
+   "what": "The acid rain cloud and its rain, crossing a row. From the original (tools/extract_assets.py)."
   },
   {
    "key": "sunspot",
-   "file": "sunspot.svg",
-   "width": 96,
-   "height": 96,
+   "file": "sunspot.png",
+   "width": 4,
+   "height": 2,
    "group": "Events",
-   "what": "The sun during sunspot activity."
+   "what": "A sunspot flash: one dot somewhere on the map each frame (white, tinted). From the original (tools/extract_assets.py)."
   },
   {
    "key": "fire",
-   "file": "fire.svg",
-   "width": 48,
-   "height": 48,
+   "file": "fire.png",
+   "width": 64,
+   "height": 64,
    "group": "Events",
-   "what": "The fire in the store."
+   "what": "The fire over the store's plot. From the original (tools/extract_assets.py)."
   },
   {
    "key": "good-food",
-   "file": "good-food.svg",
-   "width": 48,
-   "height": 48,
+   "file": "good-food.png",
+   "width": 32,
+   "height": 32,
    "group": "Auctions",
-   "what": "The food sign at the top of the status and auction screens."
+   "what": "The food sign in the top corners of the status and auction screens. From the original (tools/extract_assets.py)."
   },
   {
    "key": "good-energy",
-   "file": "good-energy.svg",
-   "width": 48,
-   "height": 48,
+   "file": "good-energy.png",
+   "width": 32,
+   "height": 32,
    "group": "Auctions",
-   "what": "The energy sign at the top of the status and auction screens."
+   "what": "The energy sign in the top corners of the status and auction screens. From the original (tools/extract_assets.py)."
   },
   {
    "key": "good-smithore",
-   "file": "good-smithore.svg",
-   "width": 48,
-   "height": 48,
+   "file": "good-smithore.png",
+   "width": 32,
+   "height": 32,
    "group": "Auctions",
-   "what": "The smithore sign at the top of the status and auction screens."
+   "what": "The smithore sign in the top corners of the status and auction screens. From the original (tools/extract_assets.py)."
   },
   {
    "key": "good-crystite",
-   "file": "good-crystite.svg",
-   "width": 48,
-   "height": 48,
+   "file": "good-crystite.png",
+   "width": 32,
+   "height": 32,
    "group": "Auctions",
-   "what": "The crystite sign at the top of the status and auction screens."
-  },
-  {
-   "key": "good-land",
-   "file": "good-land.svg",
-   "width": 48,
-   "height": 48,
-   "group": "Auctions",
-   "what": "The land auction sign."
+   "what": "The crystite sign in the top corners of the status and auction screens. From the original (tools/extract_assets.py)."
   },
   {
    "key": "store-booth",
-   "file": "store-booth.svg",
-   "width": 64,
-   "height": 48,
+   "file": "store-booth.png",
+   "width": 56,
+   "height": 18,
    "group": "Auctions",
-   "what": "The store's booth at the top of a goods auction."
+   "what": "The store's house beside its prices (status and goods auctions). From the original (tools/extract_assets.py)."
   },
   {
    "key": "font",

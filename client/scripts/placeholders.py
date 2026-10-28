@@ -14,12 +14,13 @@ SPECIES = ["mechtron", "gollumer", "packer", "bonzoid", "spheroid", "flapper", "
 GOODS = ["food", "energy", "smithore", "crystite"]
 
 # key, size on screen (canvas pixels, the canvas is 640 x 480), group, what it shows, placeholder colour
+O = " From the original (tools/extract_assets.py)."
 ENTRIES = [
-    ("plain", 64, 64, "Map", "One plot of plain ground (the map is 9 x 5 plots).", "#d9b36c"),
-    ("river", 64, 64, "Map", "A river plot (the middle column, above and below the store).", "#5aa0d8"),
-    ("store", 64, 64, "Map", "The town (the store) in the middle of the map; the walker enters it here.", "#b07a4a"),
-    ("mountain", 32, 16, "Map", "One mountain; the map draws one on each of its 20 bands, 8 scanlines high.", "#8a7a6a"),
-    *[(f"icon-{g}", 28, 28, "Map", f"The {g} factory on an improved plot (the output number is drawn beside it).", c)
+    ("plain", 64, 64, "Map", "One plot of plain ground (the map is 9 x 5 plots). From the original (tools/extract_assets.py).", "#d9b36c"),
+    ("river", 64, 64, "Map", "A river plot (the middle column, above and below the store). From the original (tools/extract_assets.py).", "#5aa0d8"),
+    ("store", 64, 64, "Map", "The town (the store) in the middle of the map; the walker enters it here. From the original (tools/extract_assets.py).", "#b07a4a"),
+    ("mountain", 32, 16, "Map", "One mountain; the map draws one on each of its 20 bands, 8 scanlines high. From the original (tools/extract_assets.py).", "#8a7a6a"),
+    *[(f"icon-{g}", 32, 32, "Map", f"The {g} factory's sign on an improved plot, in its right half; white, tinted with the owner's colour.{O}", c)
       for g, c in zip(GOODS, ["#7cc35a", "#f2d24b", "#a0a0b0", "#5fd0d0"])],
     ("assay-mark", 28, 28, "Map", "The assay flag on a sampled plot.", "#ffffff"),
     *[(f"walker-{s}", 32, 36, "Players", f"The {s.capitalize()} walking (facing right; the game mirrors it to face left). "
@@ -28,29 +29,29 @@ ENTRIES = [
       for s in SPECIES],
     *[(f"portrait-{s}", 96, 96, "Players", f"The {s.capitalize()} for the lobby and the score screen.", "#ffffff")
       for s in SPECIES],
-    ("mule", 32, 24, "Players", "A M.U.L.E. (twice the size in town).", "#c8c8c8"),
+    ("mule", 36, 20, "Players", f"A M.U.L.E. on the map (facing right; white, tinted with its owner's colour).{O}", "#c8c8c8"),
+    ("mule-town", 50, 44, "Players", f"A M.U.L.E. on its lead in town (facing right; white, tinted).{O}", "#c8c8c8"),
     ("wampus", 24, 24, "Players", "The mountain wampus, when it shows.", "#e05aa0"),
-    ("town-ground", 384, 300, "Town", "The town's yard behind the buildings (columns 8 to 31, scanlines 44 to 194; the street runs between the rows).", "#3a2a1a"),
-    ("bldg-crystite", 64, 64, "Town", "The crystite outfitter (top row, first).", "#5fd0d0"),
-    ("bldg-smithore", 64, 64, "Town", "The smithore outfitter (top row, second).", "#a0a0b0"),
-    ("bldg-energy", 64, 64, "Town", "The energy outfitter (top row, third).", "#f2d24b"),
-    ("bldg-food", 64, 64, "Town", "The food outfitter (top row, last).", "#7cc35a"),
-    ("bldg-assay", 64, 112, "Town", "The assay office (bottom row, first).", "#d08050"),
-    ("bldg-land", 64, 96, "Town", "The land office (bottom row, second).", "#c0a0e0"),
-    ("bldg-pub", 64, 80, "Town", "The pub (bottom row, third).", "#e07070"),
-    ("bldg-corral", 96, 160, "Town", "The M.U.L.E. corral (bottom row, right), down to the money line; the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain.", "#a07040"),
-    ("ship", 64, 48, "Events", "The colony ship, landing and taking off.", "#e0e0f0"),
-    ("pirate-ship", 64, 48, "Events", "The pirate ship.", "#303030"),
-    ("pest", 24, 24, "Events", "The space pest that eats a food plot.", "#60c040"),
-    ("meteorite", 32, 32, "Events", "The meteorite falling.", "#ff8030"),
-    ("radiation", 32, 32, "Events", "The radiation cloud.", "#f0f060"),
-    ("acid-cloud", 64, 32, "Events", "The acid rain cloud, crossing a row.", "#80a060"),
-    ("sunspot", 96, 96, "Events", "The sun during sunspot activity.", "#ffd040"),
-    ("fire", 48, 48, "Events", "The fire in the store.", "#ff5020"),
-    *[(f"good-{g}", 48, 48, "Auctions", f"The {g} sign at the top of the status and auction screens.", c)
+    ("town-ground", 384, 300, "Town", f"The town's yard behind the buildings (columns 8 to 31, scanlines 44 to 194; the street runs between the rows).{O}", "#3a2a1a"),
+    ("bldg-crystite", 64, 64, "Town", f"The crystite outfitter (top row, first).{O}", "#5fd0d0"),
+    ("bldg-smithore", 64, 64, "Town", f"The smithore outfitter (top row, second).{O}", "#a0a0b0"),
+    ("bldg-energy", 64, 64, "Town", f"The energy outfitter (top row, third).{O}", "#f2d24b"),
+    ("bldg-food", 64, 64, "Town", f"The food outfitter (top row, last).{O}", "#7cc35a"),
+    ("bldg-assay", 64, 112, "Town", f"The assay office (bottom row, first).{O}", "#d08050"),
+    ("bldg-land", 64, 96, "Town", f"The land office (bottom row, second).{O}", "#c0a0e0"),
+    ("bldg-pub", 64, 80, "Town", f"The pub (bottom row, third).{O}", "#e07070"),
+    ("bldg-corral", 96, 160, "Town", f"The M.U.L.E. corral (bottom row, right), down to the money line; the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain.{O}", "#a07040"),
+    ("ship", 160, 80, "Events", f"The transport ship, flying left along the store's row (its left edge at x).{O}", "#e0e0f0"),
+    ("pirate-ship", 160, 80, "Events", f"The pirate ship.{O}", "#303030"),
+    ("pest", 34, 30, "Events", f"The space pest that eats a food plot.{O}", "#60c040"),
+    ("meteorite", 136, 84, "Events", f"The meteorite's blast.{O}", "#ff8030"),
+    ("radiation", 32, 16, "Events", f"The radiation zigzag over the mule's plot.{O}", "#f0f060"),
+    ("acid-cloud", 72, 64, "Events", f"The acid rain cloud and its rain, crossing a row.{O}", "#80a060"),
+    ("sunspot", 4, 2, "Events", f"A sunspot flash: one dot somewhere on the map each frame (white, tinted).{O}", "#ffd040"),
+    ("fire", 64, 64, "Events", f"The fire over the store's plot.{O}", "#ff5020"),
+    *[(f"good-{g}", 32, 32, "Auctions", f"The {g} sign in the top corners of the status and auction screens.{O}", c)
       for g, c in zip(GOODS, ["#7cc35a", "#f2d24b", "#a0a0b0", "#5fd0d0"])],
-    ("good-land", 48, 48, "Auctions", "The land auction sign.", "#d9b36c"),
-    ("store-booth", 64, 48, "Auctions", "The store's booth at the top of a goods auction.", "#b07a4a"),
+    ("store-booth", 56, 18, "Auctions", f"The store's house beside its prices (status and goods auctions).{O}", "#b07a4a"),
     ("font", 128, 32, "Text", "The lettering: 64 characters of 8 x 8 in four rows of 16, in the Atari's order (space "
      "! \" # $ % & ' ( ) * + , - . / 0-9 : ; < = > ? @ A-Z [ \\ ] ^ _), white on transparent; tinted per text. "
      "Drawn 2x (small text) or 4x (titles). The original's own set, from the memory snapshot (tools/atari_font.py).", "#ffffff"),
@@ -96,7 +97,8 @@ def main():
         "for sharpness; the client scales it down. Leave the background transparent. The walkers are",
         "tinted with each player's colour, so draw them light (white or pale grey) where the colour goes.",
         "",
-        "Placeholders are labelled boxes; this file lists what each one stands for.",
+        "Most pictures are the original's own, cut out of the original program running in the test emulator",
+        "(`tools/extract_assets.py`); the rest are labelled boxes. Any of them can be replaced by new art.",
         "",
     ]
     group = None

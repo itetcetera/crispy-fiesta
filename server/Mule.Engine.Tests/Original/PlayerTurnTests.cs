@@ -211,10 +211,14 @@ public class PlayerTurnTests
                         // The state the last frame left, then this frame's controls.
                         string w = $"w {r[0x9F]:X2} {r[0xA3]:X2} {r[0xD3]} {r[0xE0]} {r[0xBC]} {r[0xAD]}" + (r[0xE0] != 0 ? $" m {r[0xA0]:X2} {r[0xA4]:X2}" : "") + (r[0xAD] != 0 ? $" c {m.M.Read(0xD00C) & 0x0C:X} {(m.M.Read(0xD004) != 0 ? 1 : 0)}" : "") + Sound(m.M.Pokey) + (Debug ? $" a {r[0xA9]:X2} c {r[0xC1]:X2} s {r[0x9E]:X2} wn {r[0xB33C]}" : "");
                         if (w != last && vbi > 0) { events.Add($"{vbi} {w}"); last = w; }
-                        if (shots != null && vbi % 60 == 0)
+                        if (shots != null && vbi % int.Parse(Environment.GetEnvironmentVariable("SHOT_EVERY") ?? "60") == 0)
                         {
                             File.WriteAllLines(Path.Combine(shots, $"turn{s.Seed}_{vbi:D5}.txt"), m.M.DebugDisplayList());
-                            Png.Write(Path.Combine(shots, $"turn{s.Seed}_{vbi:D5}.png"), m.M.Picture!, Mule.Atari.Atari800.PictureWidth, Mule.Atari.Atari800.PictureHeight);
+                            const int W = Mule.Atari.Atari800.PictureWidth, H = Mule.Atari.Atari800.PictureHeight;
+                            string shot = Path.Combine(shots, $"turn{s.Seed}_{vbi:D5}");
+                            Png.Write(shot + ".png", m.M.Picture!, W, H);
+                            Png.Write(shot + "_pf.png", m.M.PicturePlayfield!, W, H);
+                            Png.Write(shot + "_pm.png", m.M.PictureSprites!, W, H, alpha: true);
                         }
                         vbi++;
                         var inp = new (bool, byte)[4];
