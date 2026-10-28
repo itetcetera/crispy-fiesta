@@ -163,6 +163,10 @@ def main():
             for y in range(312 - y0, y1 - y0):
                 for x in range(img.width):
                     img.putpixel((x, y), grey)
+            # The mules in stock are characters ($FB $FC, drawMulesInStock $5149): one is kept as its
+            # own picture, and the pen is left empty for the client to fill.
+            save("corral-mule", keep(img.crop((16, 16, 48, 32)), not_bg(grey[:3])))
+            img.paste(grey, (0, 16, img.width, 128))
         save(key, img)
         yard.paste((0, 0, 0, 255), (x0 - 128, y0 - 40, min(x1, 512) - 128, min(y1, 340) - 40))
     save("town-ground", yard)

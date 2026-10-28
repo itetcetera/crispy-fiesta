@@ -239,6 +239,15 @@ export class GameScene extends Phaser.Scene {
     box("bldg-land", 14, 4, 116, 164);
     box("bldg-pub", 19, 4, 116, 156);
     box("bldg-corral", 25, 6, 116, 196);
+    // The mules in stock (drawMulesInStock, $5149), a character pair each from the corral's second
+    // row: under 8, one a row in column 2; from 8 (at most 14), the ones over 7 in column 3 and seven
+    // in column 1.
+    const stock = this.v("GoodsStoreNb", 4);
+    const mules: [number, number][] = stock < 8
+      ? Array.from({ length: stock }, (_, r) => [2, r])
+      : [...Array.from({ length: Math.min(stock, 14) - 7 }, (_, r): [number, number] => [3, r]),
+         ...Array.from({ length: 7 }, (_, r): [number, number] => [1, r])];
+    for (const [c, r] of mules) this.img("corral-mule", cellX("n", 25 + c), py(124 + 8 * r));
     this.g.fillStyle(atariColor(0x0c)).fillRect(cellX("n", 8), py(180), cellX("n", 24), 2);
     const ink = hiresInk(0x04, 0x08);
     this.at(m.title, "n", 12, 32, ink);

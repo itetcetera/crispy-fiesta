@@ -63,7 +63,8 @@ Most pictures are the original's own, cut out of the original program running in
 | `bldg-assay` | 64 x 112 | The assay office (bottom row, first). From the original (tools/extract_assets.py). |
 | `bldg-land` | 64 x 96 | The land office (bottom row, second). From the original (tools/extract_assets.py). |
 | `bldg-pub` | 64 x 80 | The pub (bottom row, third). From the original (tools/extract_assets.py). |
-| `bldg-corral` | 96 x 160 | The M.U.L.E. corral (bottom row, right), down to the money line; the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain. From the original (tools/extract_assets.py). |
+| `bldg-corral` | 96 x 160 | The M.U.L.E. corral (bottom row, right), down to the money line, empty (the mules are drawn one by one); the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain. From the original (tools/extract_assets.py). |
+| `corral-mule` | 32 x 16 | One mule in the corral; the town shows one for each mule in stock. From the original (tools/extract_assets.py). |
 
 ## Events
 

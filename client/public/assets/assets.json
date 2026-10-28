@@ -294,7 +294,15 @@
    "width": 96,
    "height": 160,
    "group": "Town",
-   "what": "The M.U.L.E. corral (bottom row, right), down to the money line; the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain. From the original (tools/extract_assets.py)."
+   "what": "The M.U.L.E. corral (bottom row, right), down to the money line, empty (the mules are drawn one by one); the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain. From the original (tools/extract_assets.py)."
+  },
+  {
+   "key": "corral-mule",
+   "file": "corral-mule.png",
+   "width": 32,
+   "height": 16,
+   "group": "Town",
+   "what": "One mule in the corral; the town shows one for each mule in stock. From the original (tools/extract_assets.py)."
   },
   {
    "key": "ship",
