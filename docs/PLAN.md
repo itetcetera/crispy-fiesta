@@ -80,6 +80,13 @@ screen geometry, message text).
      shows ("time late"), at the screen sync before the cursor (sub_5E1B, "sync late") and before
      the pub tune ("gamble late"). The CPU's mule choices, assays and money are exact either way;
      only when things happen shifts, by a frame or a few.
+   - Sound (2026-10-27). The registers are compared with the original frame by frame, as heard (a
+     voice at volume 0 counts as silent). Titles printed before a sound starts sometimes run past
+     a blank ("prod title late", "event title late", "rain title late", "no plots late"). In the land auction the
+     ticks can be a few frames off, so a frame's sound must be found within 8 frames on the other
+     side (3% may differ). The meteorite's fall and the radiation's jumps are bound by the
+     drawing: the port spreads their sound over the frames they take (a radiation step about a
+     quarter of a frame, each jump starting on a new frame), and only their length is checked.
 7. Map collisions. On the map, mountains and the river slow the walker, and touching the river
    or store near the middle takes him into town, only where the sprites' pixels overlap, as the
    GTIA latches them. The port keeps what decides them as state: the mountain and river sprite

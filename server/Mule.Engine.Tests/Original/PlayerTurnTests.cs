@@ -206,7 +206,7 @@ public class PlayerTurnTests
                                 if (r[0xBC00 + l] != 0)
                                     File.AppendAllText("/tmp/claude-0/frame_o.txt", $"L{l} p0 {r[0xBC00 + l]:X2} p2 {r[0xBE00 + l]:X2} p3 {r[0xBF00 + l]:X2} rx {string.Join(",", Enumerable.Range(0, 20).Select(i => r[0xB235 + i].ToString("X2")))}\n");
                         // The state the last frame left, then this frame's controls.
-                        string w = $"w {r[0x9F]:X2} {r[0xA3]:X2} {r[0xD3]} {r[0xE0]} {r[0xBC]} {r[0xAD]}" + (r[0xE0] != 0 ? $" m {r[0xA0]:X2} {r[0xA4]:X2}" : "") + (r[0xAD] != 0 ? $" c {m.M.Read(0xD00C) & 0x0C:X} {(m.M.Read(0xD004) != 0 ? 1 : 0)}" : "") + (Debug ? $" a {r[0xA9]:X2} c {r[0xC1]:X2} s {r[0x9E]:X2}" : "");
+                        string w = $"w {r[0x9F]:X2} {r[0xA3]:X2} {r[0xD3]} {r[0xE0]} {r[0xBC]} {r[0xAD]}" + (r[0xE0] != 0 ? $" m {r[0xA0]:X2} {r[0xA4]:X2}" : "") + (r[0xAD] != 0 ? $" c {m.M.Read(0xD00C) & 0x0C:X} {(m.M.Read(0xD004) != 0 ? 1 : 0)}" : "") + Sound(m.M.Pokey) + (Debug ? $" a {r[0xA9]:X2} c {r[0xC1]:X2} s {r[0x9E]:X2} wn {r[0xB33C]}" : "");
                         if (w != last && vbi > 0) { events.Add($"{vbi} {w}"); last = w; }
                         vbi++;
                         var inp = new (bool, byte)[4];
@@ -322,7 +322,7 @@ public class PlayerTurnTests
                         File.AppendAllText("/tmp/claude-0/frame_p.txt", $"L{l} p0 {turn.Pm0[l]:X2} h {turn.Hpos0:X2} p2 {state.SprMount[l]:X2} p3 {state.SprRiver[l]:X2} rx {string.Join(",", state.RiverStoreX.Select(b => b.ToString("X2")))}\n");
             if (turn != null && !game.Finished)
             {
-                string w = $"w {turn.X:X2} {turn.Y:X2} {turn.Time} {turn.HasMule} {turn.Outfit} {turn.Map}" + (turn.HasMule != 0 ? $" m {turn.MuleX:X2} {turn.MuleY:X2}" : "") + (turn.Map != 0 ? Collisions(state, turn) : "") + (Debug ? $" a {turn.Phase:X2} s {game.Vbi.Sound:X2}" : "");
+                string w = $"w {turn.X:X2} {turn.Y:X2} {turn.Time} {turn.HasMule} {turn.Outfit} {turn.Map}" + (turn.HasMule != 0 ? $" m {turn.MuleX:X2} {turn.MuleY:X2}" : "") + (turn.Map != 0 ? Collisions(state, turn) : "") + Sound(game.Vbi.Pokey) + (Debug ? $" a {turn.Phase:X2} s {game.Vbi.Sound:X2} wn {game.Vbi.Warn}" : "");
                 if (w != last) { events.Add($"{VFrame()} {w}"); last = w; }
             }
             if (VFrame() > 60_000)
@@ -340,8 +340,16 @@ public class PlayerTurnTests
     /// <summary>Whether the original went into the town on this frame with nothing latched for the river or
     /// the store, after a frame that had it: its walker line on this frame shows no collision, the one
     /// before showed one, and the next is the town's.</summary>
-    static bool StoreEarly(List<(long, string)> w, long frame)
+    static bool StoreEarly(List<(long, string)> all, long frame)
     {
+        // The lines without their sound, as they were before the sound was compared.
+        var w = new List<(long, string)>();
+        foreach (var (f, line) in all)
+        {
+            int s = line.IndexOf(" snd ");
+            string l = s < 0 ? line : line[..s];
+            if (w.Count == 0 || w[^1].Item2 != l) w.Add((f, l));
+        }
         int i = w.FindIndex(e => e.Item1 == frame);
         if (i < 1 || i + 1 >= w.Count || w[i + 1].Item2.Split(' ')[6] != "0") return false;
         static int Hit(string line)
@@ -352,6 +360,9 @@ public class PlayerTurnTests
         }
         return Hit(w[i].Item2) == 0 && Hit(w[i - 1].Item2) != 0;
     }
+
+    /// <summary>The POKEY sound registers, when the tests compare sound.</summary>
+    internal static string Sound(byte[] pokey) => " snd " + Convert.ToHexString(pokey);
 
     static string Collisions(GameState g, Turn t)
     {

@@ -87,3 +87,9 @@ Placeholders are labelled boxes; this file lists what each one stands for.
 | `good-crystite` | 48 x 48 | The crystite sign at the top of the status and auction screens. |
 | `good-land` | 48 x 48 | The land auction sign. |
 | `store-booth` | 64 x 48 | The store's booth at the top of a goods auction. |
+
+## Text
+
+| File | Size | What it shows |
+|---|---|---|
+| `font` | 128 x 32 | The lettering: 64 characters of 8 x 8 in four rows of 16, in the Atari's order (space ! " # $ % & ' ( ) * + , - . / 0-9 : ; < = > ? @ A-Z [ \ ] ^ _), white on transparent; tinted per text. Drawn 2x (small text) or 4x (titles). The original's own set, from the memory snapshot (tools/atari_font.py). |

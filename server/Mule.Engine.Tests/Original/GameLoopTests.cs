@@ -13,6 +13,8 @@ public class GameLoopTests
     readonly ITestOutputHelper _out;
     public GameLoopTests(ITestOutputHelper o) => _out = o;
 
+    static readonly int NoiseAhead = int.Parse(Environment.GetEnvironmentVariable("NOISE_AHEAD") ?? "1");
+    static readonly bool SndDebug = Environment.GetEnvironmentVariable("SND_DEBUG") != null;
     static readonly HashSet<ushort> WampusRandomPcs = new() { 0x8BD6, 0x8C11, 0x119A };
 
     // The phases of round ($478A), as the port traces them.
@@ -54,6 +56,8 @@ public class GameLoopTests
         public List<string> Messages { get; init; } = new();
         /// <summary>The state at the end of each round's score.</summary>
         public List<GameState> Ends { get; init; } = new();
+        /// <summary>The POKEY sound registers each time they change, by frame.</summary>
+        public List<(long Frame, string What)> Sounds { get; init; } = new();
     }
 
     static readonly Dictionary<ushort, string> AuctionPoints = new()
@@ -61,9 +65,15 @@ public class GameLoopTests
         [0x657B] = "select", [0x9FFA] = "trade", [0x8EAA] = "unit", [0x91F5] = "collusion", [0x952A] = "over", [0x9D6D] = "no sellers", [0x5892] = "bars", [0x6110] = "c1=0", [0x637C] = "requirement", [0x638F] = "press",
     };
 
+    /// <summary>When set, the original's picture is saved there as PNGs: shortly after each phase point,
+    /// and every 300 frames (reference shots for the client's screens).</summary>
+    static readonly string? Shots = Environment.GetEnvironmentVariable("SHOTS");
+
     static Run RunOriginal(GameState g, int seed, bool whole = false)
     {
         var m = new MachineGame();
+        if (Shots != null) { Directory.CreateDirectory(Shots); m.M.EnablePicture(); }
+        var shotAt = new SortedDictionary<long, string>();
         StateMapper.ToRam(g, m.Ram);
         m.Ram[0xC1] = 0xFF; m.Ram[0x4E] = 0; m.Ram[0x9E] = 0xFF; m.Ram[0xC8] = 0;
         m.M.CallRoutine(OriginalGame.Sym("initBB00ToBFFF"));
@@ -85,9 +95,12 @@ public class GameLoopTests
         var auction = new List<(long, string)>();
         bool inGoods = false, selected = false, traded = false;
         var trading = new List<List<string>>();
-        string lastW = "";
+        string lastW = "", lastSnd = "";
+        var sounds = new List<(long, string)>();
         temps = new(); clocks = new();
         long vbi = 0, lastPoint = 0;
+        byte last9E = 0xFF;
+        var lastRegs = new byte[9];
         ushort prevPc = 0, prevMain = 0;
         var ring = new ushort[64]; int ringAt = 0;
         m.M.AfterStep = c =>
@@ -95,6 +108,12 @@ public class GameLoopTests
             bool afterRti = m.M.Read(prevPc) == 0x40;
             if (!m.M.InVblank) prevMain = c.PC;
             ring[ringAt++ & 63] = c.PC;
+            if (SndDebug && !m.M.Pokey.AsSpan().SequenceEqual(lastRegs))
+            {
+                File.AppendAllText("/tmp/claude-0/sndw.txt", $"{vbi} {Convert.ToHexString(m.M.Pokey)} at {prevPc:X4} vbl {m.M.InVblank}\n");
+                m.M.Pokey.CopyTo(lastRegs, 0);
+            }
+            if (SndDebug && m.Ram[0x9E] != last9E) { File.AppendAllText("/tmp/claude-0/snd9e.txt", $"{vbi} 9E {last9E:X2}->{m.Ram[0x9E]:X2} at {prevPc:X4} main {prevMain:X4} vbl {m.M.InVblank}\n"); last9E = m.Ram[0x9E]; }
             prevPc = c.PC;
             if (afterRti) return;
             if (c.PC == 0x5BB5)
@@ -112,6 +131,18 @@ public class GameLoopTests
                     string w = $"w {m.Ram[0xD3]} {m.Ram[0xAD]}";
                     if (w != lastW && vbi > 0 && w.EndsWith(" 1")) { turn.Add((vbi, w)); lastW = w; }
                 }
+                if (Shots != null)
+                {
+                    if (vbi % 300 == 0) shotAt.TryAdd(vbi, $"t{vbi}");
+                    if (shotAt.Remove(vbi, out var name))
+                    {
+                        File.WriteAllLines(Path.Combine(Shots, $"s{seed}_{vbi:D6}_{name.Replace(' ', '-')}.txt"), m.M.DebugDisplayList());
+                        File.AppendAllText(Path.Combine(Shots, "pm.txt"), $"{vbi} {name} {m.M.DebugPm} pm {string.Join(",", Enumerable.Range(0, 5).Select(n => m.Ram.AsSpan(0xB800 + 0x300 + n * 0x100, 0x100).ToArray().Count(b => b != 0)))}\n");
+                        Png.Write(Path.Combine(Shots, $"s{seed}_{vbi:D6}_{name.Replace(' ', '-')}.png"), m.M.Picture!, Mule.Atari.Atari800.PictureWidth, Mule.Atari.Atari800.PictureHeight);
+                    }
+                }
+                string snd = Convert.ToHexString(m.M.Pokey);
+                if (snd != lastSnd && vbi > 0) { sounds.Add((vbi, snd)); lastSnd = snd; }
                 vbi++;
                 return;
             }
@@ -153,7 +184,7 @@ public class GameLoopTests
             if (c.PC == 0x6F19) { message = Decode(m.Ram); messages.Add(message); }
             if (c.PC == 0x6F60) ends.Add(StateMapper.FromRam(m.Ram));
             if (c.PC == 0x7D35 && events[^1].Item2 == "meteorite") return; // the fifteen waits after the fall
-            if (Checkpoints.TryGetValue(c.PC, out var what)) { lastPoint = vbi; if (Progress != null && what is "round" or "score end") File.AppendAllText(Progress, $"original {what} {vbi} round {m.Ram[0xB1]}\n"); events.Add((vbi, what)); clocks.Add($"{what} {m.Ram[0x14]} {m.Ram[0xC3]} {m.Ram[0xC4]} {m.Ram[0xC5]} {m.Ram[0xC6]}"); temps.Add($"{what}:{string.Join(",", m.Ram.AsSpan(0xB42D, 45).ToArray())}"); }
+            if (Checkpoints.TryGetValue(c.PC, out var what)) { lastPoint = vbi; if (Progress != null && what is "round" or "score end") File.AppendAllText(Progress, $"original {what} {vbi} round {m.Ram[0xB1]}\n"); events.Add((vbi, what)); if (Shots != null) { shotAt.TryAdd(vbi + 20, what); shotAt.TryAdd(vbi + 120, what + "+120"); } clocks.Add($"{what} {m.Ram[0x14]} {m.Ram[0xC3]} {m.Ram[0xC4]} {m.Ram[0xC5]} {m.Ram[0xC6]}"); temps.Add($"{what}:{string.Join(",", m.Ram.AsSpan(0xB42D, 45).ToArray())}"); }
         };
         // The round ends at the score: return there instead of going on to the next round.
         if (!whole) m.Ram[0x4845] = 0x60;
@@ -170,7 +201,7 @@ public class GameLoopTests
             File.AppendAllText(Progress, $"timeout: vbi {vbi}, PC {m.M.Cpu.PC:X4}, S {m.M.Cpu.S:X2}, last {string.Join(" ", Enumerable.Range(0, 64).Select(k => ring[(ringAt + k) & 63].ToString("X4")))}\n");
             throw;
         }
-        return new Run(events, StateMapper.FromRam(m.Ram), rng.Position, timers) { Message = message, Turn = turn, Auction = auction, Trading = trading, Messages = messages, Ends = ends };
+        return new Run(events, StateMapper.FromRam(m.Ram), rng.Position, timers) { Message = message, Turn = turn, Auction = auction, Trading = trading, Messages = messages, Ends = ends, Sounds = sounds };
     }
 
     /// <summary>The scrolling message buffer at $B700, up to its end mark.</summary>
@@ -232,6 +263,19 @@ public class GameLoopTests
         var game = new Game(state, rng);
         long VFrame() => game.Frame - game.HeldFrames;
         game.Vbi.RtClock = timers[0];
+        if (orig != null)
+        {
+            // The hardware noise read in a blank (acid rain's thunder): the original's choice, from its AUDC2
+            // as it stands after this blank.
+            int noiseCalls = 0;
+            game.Vbi.Noise = () =>
+            {
+                if (noiseCalls++ % 2 == 1) return 0;
+                long f = VFrame() + NoiseAhead;
+                var e = orig.Sounds.LastOrDefault(x => x.Frame <= f);
+                return e.What != null && e.What.Substring(6, 2) == "0E" ? (byte)0 : (byte)1;
+            };
+        }
         for (int i = 0; i < 4; i++) game.Vbi.Timers[i] = timers[i + 1];
         var names = new HashSet<string>(Checkpoints.Values);
         var events = new List<(long, string)>();
@@ -288,6 +332,10 @@ public class GameLoopTests
                 "sync late" => at.Skip(turn.Count).First(e => e.What == "sync").Frame > VFrame(),
                 _ when q.StartsWith("time late ") => at.Skip(turn.Count).First(e => e.What.StartsWith("w ") && e.What.Split(' ')[1] == q[10..]).Frame > VFrame(),
                 "gamble late" => at.First(e => e.Frame >= VFrame() && e.What == "end").Frame > VFrame() + 277,
+                "event title late" => orig != null && orig.Sounds.FirstOrDefault(e => e.Frame >= VFrame()).Frame > VFrame(),
+                "rain title late" => orig != null && orig.Sounds.FirstOrDefault(e => e.Frame >= VFrame()).Frame > VFrame() + 1,
+                "prod title late" => orig != null && orig.Sounds.FirstOrDefault(e => e.Frame > VFrame() && e.What.StartsWith("C8")).Frame > VFrame() + 6,
+                "no plots late" => orig != null && orig.Sounds.FirstOrDefault(e => e.Frame > VFrame()).Frame > VFrame() + 1,
                 _ => false,
             };
         }
@@ -313,11 +361,14 @@ public class GameLoopTests
         game.StartNow(whole ? GameLoop.Rounds(game, score) : GameLoop.Round(game, score));
         var input = new PlayerInput[4];
         for (int p = 0; p < 4; p++) input[p] = new PlayerInput(false, 15);
-        string lastW = "";
+        string lastW = "", lastSnd = "";
+        var sounds = new List<(long, string)>();
         int seenEv = 0;
         while (!game.Finished)
         {
             game.RunFrame(input);
+            string snd = Convert.ToHexString(game.Vbi.Pokey);
+            if (snd != lastSnd && !game.Finished) { sounds.Add((VFrame(), snd)); lastSnd = snd; }
             for (; seenEv < game.Events.Count; seenEv++)
                 if (inGoods)
                     switch (game.Events[seenEv])
@@ -333,7 +384,7 @@ public class GameLoopTests
             }
             if (VFrame() > 4_000_000) throw new TimeoutException("port did not finish");
         }
-        return new Run(events, state, rng.Position, timers) { Message = score.Message.TrimEnd(), Turn = turn, Auction = auction, Messages = messages, Ends = ends };
+        return new Run(events, state, rng.Position, timers) { Message = score.Message.TrimEnd(), Turn = turn, Auction = auction, Messages = messages, Ends = ends, Sounds = sounds };
     }
 
     [Fact]
@@ -404,10 +455,99 @@ public class GameLoopTests
             _out.WriteLine($"  message original: {o.Message}\n  message port: {p.Message}");
             int slip = Slip(o.Events, p.Events);
             _out.WriteLine($"  largest slip {slip} frames");
+            string? sound = SoundDiff(o, p);
+            if (sound != null) _out.WriteLine("  sound " + sound);
+            if (sound != null && sound.Contains("sound mismatch")) failures.Add($"seed {seed} sound");
             if (slip is not (>= 0 and <= Tolerance) || diff.Count > 0 || o.RandomReads != p.RandomReads || o.Message != p.Message || turnsDiffer) failures.Add($"seed {seed}");
         }
         _out.WriteLine(string.Join("\n", Thinks));
         Assert.True(failures.Count == 0, string.Join(", ", failures));
+    }
+
+    /// <summary>Where the sound first differs: each change of the registers, counted in frames from the
+    /// phase point before it.</summary>
+    static string? SoundDiff(Run o, Run p)
+    {
+        if (SndDebug)
+        {
+            File.WriteAllLines("/tmp/claude-0/snd_o.txt", Rel(o));
+            File.WriteAllLines("/tmp/claude-0/snd_p.txt", Rel(p));
+        }
+        static List<string> Rel(Run r)
+        {
+            var l = new List<string>();
+            int k = 0;
+            foreach (var (f, s) in r.Sounds)
+            {
+                while (k + 1 < r.Events.Count && r.Events[k + 1].Frame <= f) k++;
+                l.Add($"{r.Events[k].What}+{f - r.Events[k].Frame} {s}");
+            }
+            return l;
+        }
+        var (a, b) = (Rel(o), Rel(p));
+        int i = 0;
+        while (i < a.Count && i < b.Count && a[i] == b[i]) i++;
+        if (i == a.Count && i == b.Count) return null;
+        string first = $"differs at change {i} of {a.Count}/{b.Count}:\n    " + string.Join("\n    ", Enumerable.Range(Math.Max(0, i - 3), 8)
+            .Select(k => $"{(k < a.Count ? a[k] : ""),-40} | {(k < b.Count ? b[k] : "")}"));
+        var bad = SoundMismatch(o, p);
+        return bad == null ? null : first + "\n  " + bad;
+    }
+
+    /// <summary>The registers frame by frame, each phase from its start: they must be the same, except in
+    /// the land auction, whose main loop is bound by the drawing (a tick is taken a frame early or late,
+    /// docs/PLAN.md), where each frame's registers must be found within 8 frames on the other side, and a few frames (3%) may differ. Null when they match.</summary>
+    static string? SoundMismatch(Run o, Run p)
+    {
+        if (o.Events.Count != p.Events.Count) return "phases differ";
+        // What is heard: a voice at volume 0 is silent whatever its frequency and distortion.
+        static string Audible(string hex)
+        {
+            var c = hex.ToCharArray();
+            for (int v = 0; v < 4; v++)
+                if (c[v * 4 + 3] == '0')
+                    for (int k = 0; k < 4; k++) c[v * 4 + k] = '0';
+            return new string(c);
+        }
+        string State(Run r, long f)
+        {
+            var e = r.Sounds.LastOrDefault(x => x.Frame <= f);
+            return Audible(e.What ?? "000000000000000000");
+        }
+        var bad = new List<string>();
+        for (int k = 0; k < o.Events.Count; k++)
+        {
+            long os = o.Events[k].Frame, ps = p.Events[k].Frame;
+            long oe = k + 1 < o.Events.Count ? o.Events[k + 1].Frame : o.Sounds.Count > 0 ? Math.Max(os, o.Sounds[^1].Frame + 1) : os;
+            long pe = k + 1 < p.Events.Count ? p.Events[k + 1].Frame : p.Sounds.Count > 0 ? Math.Max(ps, p.Sounds[^1].Frame + 1) : ps;
+            long len = Math.Min(oe - os, pe - ps);
+            if (len <= 0) continue;
+            // The meteorite's fall and the radiation's jumps are bound by the drawing: the port spreads
+            // their sound over the frames they take, so only their length is checked (by the phases).
+            if (o.Events[k].What == "round event" && Kinds.Any(e => e.Contains("Meteorite") || e.Contains("Radiation"))) continue;
+            // The land auctions' main loop is bound by the drawing: its ticks, and each next auction's
+            // start, can be a few frames off within the phase.
+            int w = o.Events[k].What == "auction" ? 8 : 0;
+            var so = Enumerable.Range(0, (int)len + 2 * w).Select(t => State(o, os + t - w)).ToArray();
+            var sp = Enumerable.Range(0, (int)len + 2 * w).Select(t => State(p, ps + t - w)).ToArray();
+            int miss = 0, firstMiss = -1;
+            for (int t = 0; t < len; t++)
+            {
+                bool Near(string[] other, string x)
+                {
+                    for (int d = 0; d <= 2 * w; d++) if (other[t + d] == x) return true;
+                    return false;
+                }
+                if (!Near(sp, so[t + w]) || !Near(so, sp[t + w]))
+                {
+                    miss++;
+                    if (firstMiss < 0) firstMiss = t;
+                }
+            }
+            if (miss > (w == 0 ? 0 : len * 3 / 100))
+                bad.Add($"{o.Events[k].What}: {miss} of {len} frames, first +{firstMiss} ({State(o, os + firstMiss)} | {State(p, ps + firstMiss)})");
+        }
+        return bad.Count == 0 ? null : "sound mismatch: " + string.Join("; ", bad);
     }
 
     /// <summary>A new tournament game with four CPUs, from the first round to the last (or a failed colony).

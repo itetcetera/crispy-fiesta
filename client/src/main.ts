@@ -5,11 +5,13 @@ import { Lobby } from "./lobby";
 import { hasToken, Net, savedName } from "./net";
 import type { LobbyView } from "./protocol";
 import { GameScene, gameConfig } from "./scenes/GameScene";
+import { Sound } from "./sound/audio";
 import { Model } from "./state";
 import "./style.css";
 
 const net = new Net();
 const model = new Model();
+const sound = new Sound();
 const lobbyRoot = document.getElementById("lobby")!;
 const gameRoot = document.getElementById("game")!;
 const status = document.body.appendChild(Object.assign(document.createElement("div"), { id: "status" }));
@@ -18,7 +20,7 @@ let room: LobbyView | null = null;
 let game: Phaser.Game | null = null;
 
 // For the browser tests and for looking around in the console.
-(window as unknown as { mule: unknown }).mule = { net, model, room: () => room };
+(window as unknown as { mule: unknown }).mule = { net, model, sound, room: () => room };
 
 const seatNames = () => {
   const names: string[] = [];
@@ -41,7 +43,10 @@ net.onLobby = (l) => {
   lobbyRoot.hidden = playing;
   if (playing) void startGame();
 };
-net.onFrame = (f) => model.apply(f);
+net.onFrame = (f) => {
+  model.apply(f);
+  sound.feed(f.pokey, f.full);
+};
 net.onStatus = (s) => (status.textContent = s);
 
 watchControls((button, stick) => net.input(button, stick), () => room?.phase === "Playing");

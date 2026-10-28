@@ -64,6 +64,8 @@ public static class GoodsAuction
         SetPriceStartEnd(g, a);
         a.Speed = (byte)(g.Level == 0 && g.NumRound == 1 ? 4 : 2);
         a.Flash = 0;
+        a.ToneStep = 1;
+        a.Tone = 0x7D;
         v.InitButtons();
         game.Emit(new GoodsStatusEvent(good));
         yield return game.Frames(game.Think?.Invoke("status draw") ?? StatusDrawFrames);
@@ -131,6 +133,7 @@ public static class GoodsAuction
             g.GoodsPlayersNb[i] = (byte)(n > 255 ? 255 : n);
             SetW(a.B309, 2 * p, (ushort)(g.GoodsPlayersNb[i] * 4));
         }
+        a.ToneStep = 0xFF; // the tone falls as the bars grow
         yield return Bars(game, a, BarKind.Production);
         yield return game.WaitJiffyLevel();
 
@@ -216,10 +219,20 @@ public static class GoodsAuction
         for (int x = 3; x >= 0; x--) a.Seller[x] = 0;
         game.Emit(new GoodsBarsEvent((int)kind, a.Bid.ToArray(), Enumerable.Range(0, 4).Select(p => W(a.B309, 2 * p)).ToArray()));
         bool up = kind == BarKind.Production;
+        var p = game.Vbi.Pokey;
+        p[Vbi.Audctl] = 0; // sub_1363
+        game.Vbi.Silence();
         int done = 0;
         while (done != 4)
         {
             yield return BarStep(a);
+            // A tone on voice 1 that moves a step each bar step, held between $19 and $C8 (quieter there).
+            byte tone = (byte)(a.Tone + a.ToneStep), ctl = 0xA3;
+            if (tone >= 0xC8) { tone = 0xC8; ctl--; }
+            if (tone < 0x19) { tone = 0x19; ctl -= 2; }
+            a.Tone = tone;
+            p[Vbi.Audf(1)] = tone;
+            p[Vbi.Audc(1)] = ctl;
             done = 0;
             for (int x = 3; x >= 0; x--)
             {
@@ -231,6 +244,7 @@ public static class GoodsAuction
                 else { a.Seller[x]++; done++; }
             }
         }
+        game.Vbi.Silence();
     }
 
     /// <summary>sub_59C7: four rounds, surplus then shortage, each flashing its players' lines five
@@ -339,6 +353,8 @@ public static class GoodsAuction
         if ((g.MaxIndexCpu & 0x80) == 0) Ai4(g, game.Rng, a);
         for (int x = 3; x >= 0; x--) a.Mask[x] = 0x0F;
         a.Time = 0x1E;
+        v.StartWarning(); // $656D: the select has the low-time warning too
+        v.TurnTime = () => a.Time; // the select's time is $D3 too (the warning reads it)
         a.Tick = 0;
         a.FrameDone = 0;
         game.Emit(new GoodsSelectEvent(good, a.Seller.ToArray()));
@@ -548,6 +564,9 @@ public static class GoodsAuction
         a.FlashTimer = 0; a.StepTimer = 0; v.Timers[0] = 0; a.MessageShown = 0;
         a.StoreBuys = 0; a.ScaleRaised = 0; a.Offer = 0; a.OfferSetUp = 0; a.Requests = 0; a.RequestWindow = 0;
         a.Time = 0x46;
+        // sub_3101 ($9E18): the low-time warning, on the auction's time bar.
+        v.StartWarning();
+        v.TurnTime = () => a.Time;
         a.CpuBound = 0xFA;
         a.Limit = 0xAF;
         a.Top = 0x9A;
@@ -591,6 +610,7 @@ public static class GoodsAuction
             }
             skipAi3 = false;
             if ((g.MaxIndexCpu & 0x80) == 0) Ai12(game, a);
+            v.Warn = 1; // $A00F: back on each pass (a trade turns it off)
             game.Trace?.Invoke("rnd waittick");
             a.TickDone = 0;
             while (a.TickDone == 0) yield return null;
@@ -771,6 +791,7 @@ public static class GoodsAuction
         else if (a.MessageHold == 0 && a.FlashTimer == 0)
         {
             a.FlashTimer = 0x15;
+            v.Silence();
             goto tail;
         }
         else if (a.TickDone == 0 && (a.Tick & 0x80) != 0)
@@ -780,6 +801,9 @@ public static class GoodsAuction
             LandAuction.Move(g, v, a);
             a.TickDone = 1;
         }
+        // $9B66/$9B70: the voices are silenced on every frame without a movement tick, so a footstep
+        // (or the warning's tone) lasts a frame or two.
+        else v.Silence();
         if (a.Trade == 0 && a.StepTimer == 0)
         {
             a.StepTimer = g.GoodsTimeReload;
@@ -859,6 +883,7 @@ public static class GoodsAuction
     {
         if (a.Offer == 0 || a.OfferSetUp != 0) yield break;
         a.OfferSetUp++;
+        game.Vbi.Warn = 0;
         game.Trace?.Invoke("collusion");
         yield return LandAuction.Freeze(a);
         game.Vbi.Handler = null;
@@ -936,6 +961,7 @@ public static class GoodsAuction
         var t = g.PlotsTemp3;
         game.Trace?.Invoke("rnd ai9");
         yield return LandAuction.Freeze(a);
+        v.Warn = 0;
         a.UnitsTraded = 0;
         byte cp = g.CurrentPlayer;
         byte buyerPos = 0, sellerPos = 0;
@@ -1010,6 +1036,7 @@ public static class GoodsAuction
                 continue;
             }
             Ai9a(game, a);
+            v.Sound = 0; // $8F6A: each unit clicks
             Ai9b(game, a);
             // Drawing the new amounts runs past a vertical blank.
             yield return game.Frames(UnitDrawFrames);

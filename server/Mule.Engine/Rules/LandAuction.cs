@@ -55,6 +55,7 @@ public sealed class Auction
     public byte Good;                                   // $91
     public byte Speed;                                  // $9A05 frames between status bar steps
     public byte StepTimer;                              // $AF
+    public byte Tone, ToneStep;                         // $B338, $B339: the goods status bars' tone and its step
     public byte StepReady;                              // $D9
     public byte Flash;                                  // $DA status: surplus and shortage shown
     public readonly byte[] Role = new byte[4];          // $B1A9 side a CPU takes (1 seller)
@@ -438,6 +439,9 @@ public static class LandAuction
             Move(g, v, a);
             a.TickDone = 1;
         }
+        // $9CE3: the voices are silenced on every frame the main loop has not yet taken a tick and none
+        // is due, so a footstep (or the warning's tone) lasts a frame or two.
+        else if (a.TickDone == 0) v.Silence();
         if (a.TimeStop == 0 && a.TimeLeft == 0)
         {
             a.TimeLeft = g.AuctionTimeReload;
@@ -467,35 +471,60 @@ public static class LandAuction
             for (int x = 3; x >= 0; x--)
                 if (x != a.SellerPlayer) a.Mask[x] = 0x0F;
         if ((a.AtTop & 0x80) == 0 && (v.Stick[a.AtTop] | a.Mask[a.AtTop]) == 0x0E) a.TopPush++;
-        for (int x = 3; x >= 0; x--)
-        {
-            if (a.SellerMove != 0) continue;
-            byte s = (byte)(v.Stick[x] | a.Mask[x]);
-            if (a.Kind != 0 && x == a.SellerPlayer)
-            {
-                if (s == 0x0E) a.SellerMove++;
-                else if (s == 0x0D) a.SellerMove--;
-                continue;
-            }
-            int y;
-            if (a.TopPush != 0)
-            {
-                if (s == 0x0E) continue;
-                if (a.Seller[x] == 0 && a.Pos[x] != 0) { Step(a, x, 0); continue; }
-            }
-            if (s == 0x0F) continue;
-            y = (s & 3) - 1;
-            Step(a, x, y);
-        }
+        for (int x = 3; x >= 0; x--) Footstep(g, v, a, x, MovePlayer(v, a, x));
     }
 
-    internal static void Step(Auction a, int x, int y)
+    /// <summary>$95C6: one player's movement; whether it walks (its walking frames show, even when held
+    /// at the line or pushing at the top).</summary>
+    static bool MovePlayer(Vbi v, Auction a, int x)
+    {
+        if (a.SellerMove != 0) return false;
+        byte s = (byte)(v.Stick[x] | a.Mask[x]);
+        if (a.Kind != 0 && x == a.SellerPlayer)
+        {
+            if (s == 0x0E) { a.SellerMove++; return true; }
+            if (s == 0x0D) { a.SellerMove--; return true; }
+            return false;
+        }
+        if (a.TopPush != 0)
+        {
+            if (s == 0x0E) return true;
+            if (a.Seller[x] == 0 && a.Pos[x] != 0) return Step(a, x, 0);
+        }
+        if (s == 0x0F) return false;
+        return Step(a, x, (s & 3) - 1);
+    }
+
+    internal static bool Step(Auction a, int x, int y)
     {
         byte d = y < 0 ? (byte)0 : Delta[y];
         byte n = (byte)(a.Pos[x] + d);
-        if (n >= a.Limit) return;
-        if (a.Seller[x] == 0 && n < 0x54) return;
+        if (n >= a.Limit) return false;
+        if (a.Seller[x] == 0 && n < 0x54) return true;
         a.Pos[x] = n;
+        return true;
+    }
+
+    /// <summary>$961A-$969B: the player's town frame, standing or the next walking one (buyers' frames from
+    /// $C0, sellers' from $90), and the species' footstep on the player's own voice when that frame's flag
+    /// is set (silent otherwise).</summary>
+    static void Footstep(GameState g, Vbi v, Auction a, int x, bool walk)
+    {
+        byte frame;
+        bool seller = a.Seller[x] != 0;
+        if (walk)
+        {
+            g.AuctionStep[x] ^= 0x18;
+            frame = (byte)((seller ? 0x90 : 0xC0) + g.AuctionStep[x]);
+        }
+        else frame = seller ? (byte)0x60 : (byte)0xF0;
+        int voice = x + 1;
+        if (g.WalkerTown[x * 0x110 + frame] != 0)
+        {
+            v.Pokey[Vbi.Audf(voice)] = g.PlayersStepFreq[x];
+            v.Pokey[Vbi.Audc(voice)] = g.PlayersStepCtl[x];
+        }
+        else v.Pokey[Vbi.Audc(voice)] = 0;
     }
 
     /// <summary>sub_96B9: everyone's stick held still, then one movement tick.</summary>
@@ -541,6 +570,9 @@ public static class LandAuction
         a.TickDone = 0xFF; a.SellerPlayer = 0xFF; a.AtTop = 0xFF; a.FrameDone = 0xFF;
         v.Timers[0] = 1;
         a.Time = 0x46;
+        // sub_3101 ($9E18): the low-time warning, on the auction's time bar.
+        v.StartWarning();
+        v.TurnTime = () => a.Time;
         a.Limit = 0xAF; a.Top = 0x9A;
         a.Tick = 0; a.Offer = 0; a.OfferSetUp = 0; a.Flag43 = 0;
         if ((g.MaxIndexCpu & 0x80) == 0) Ai1Land(g, game.Rng);
@@ -589,6 +621,7 @@ public static class LandAuction
             if (!skipToMasks)
             {
                 Ai3(g, a);
+                v.Warn = 1; // $A3A4
                 if (a.Offer != 0)
                     for (int x = 3; x >= 0; x--)
                         a.Out[x] = a.InOffer[x] != 0 && x != a.SellerPlayer ? (byte)0 : (byte)1;
@@ -808,6 +841,7 @@ public static class LandAuction
     {
         if (a.Offer == 0 || a.OfferSetUp != 0) yield break;
         a.OfferSetUp++;
+        game.Vbi.Warn = 0;
         yield return Freeze(a);
         var handler = game.Vbi.Handler;
         game.Vbi.Handler = null;

@@ -8,6 +8,10 @@ public sealed record SeatSetup(bool Cpu, Race Race, byte Color);
 /// <summary>initGame ($4293): map generation and starting values (tournament).</summary>
 public static class Setup
 {
+    // Each species' footstep sound, by race (the disk's species setup, $83FB and $8403).
+    static readonly byte[] StepFreq = { 0x10, 0xB0, 0x90, 0xFF, 0x78, 0x40, 0x20, 0x78 };
+    static readonly byte[] StepCtl = { 0x06, 0xA7, 0xA5, 0xA7, 0xC5, 0xA6, 0x06, 0xA6 };
+
     /// <summary>Creates a tournament game. CPUs must take the lowest seat numbers, as in the original.</summary>
     public static GameState NewGame(IRandomSource rng, IReadOnlyList<SeatSetup> seats)
     {
@@ -29,6 +33,8 @@ public static class Setup
             var race = (Race)g.PlayersRace[p];
             MapGraphics.WalkerTown(race).CopyTo(g.WalkerTown, p * 0x110);
             MapGraphics.WalkerMap(race).CopyTo(g.WalkerMap, p * 0x80);
+            g.PlayersStepFreq[p] = StepFreq[(int)race];
+            g.PlayersStepCtl[p] = StepCtl[(int)race];
         }
         GenerateMap(g, rng);
         InitValues(g);

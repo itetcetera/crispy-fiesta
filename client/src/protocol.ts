@@ -37,4 +37,6 @@ export interface FrameMessage {
   events: GameEvent[];
   state: Record<string, number[]>;
   full: boolean;
+  /** The sound chip's registers each frame they changed: [tick, AUDF1, AUDC1 ... AUDF4, AUDC4, AUDCTL]. */
+  pokey?: number[][];
 }

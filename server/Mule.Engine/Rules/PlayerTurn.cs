@@ -27,8 +27,6 @@ public sealed class Turn
     public byte EventShown;           // $B33D player event text: 1 scrolling, 2+ shown once
     public byte Ctrl;                 // $E7 controller index
     public byte TimeWait;             // $5642 playerTurnTimeWait
-    public byte WarnTime = 0x1E;      // $B33A low-time warning threshold
-    public byte Warn;                 // $B33C warning sound on
     public byte WampusTime;           // $8B8B
     public byte WampusX, WampusX2, WampusY, WampusVisible;
     public byte Flash, Flashes;       // $80, $88
@@ -153,6 +151,10 @@ public static partial class PlayerTurn
         }
     }
 
+    // The player event tunes, played from the last note to the first ($89C3, $89CA).
+    static readonly byte[] BadNewsTune = { 0xF3, 0xF3, 0xF3, 0xB6, 0xB6, 0xF3, 0xCC };
+    static readonly byte[] GoodNewsTune = { 0x35, 0x35, 0x35, 0x48, 0x00, 0x35, 0x48, 0x60, 0x6C };
+
     /// <summary>playerEvent ($8131) as the turn shows it: the wampus moves, then maybe an event with
     /// its scrolling text.</summary>
     static IEnumerable PlayerEvent(Game game, Turn t)
@@ -163,11 +165,18 @@ public static partial class PlayerTurn
         if (r == null) yield break;
         game.Vbi.Handler = null;
         game.Emit(new PlayerEventShownEvent(r));
-        // soundPlayerEvent ($897C): a falling tune for bad news, a rising one for good.
-        if (PlayerEvents.Quality[r.Event] < 0)
-            for (int i = 0; i < 7; i++) yield return game.WaitJiffy(0x14);
-        else
-            for (int i = 0; i < 9; i++) yield return game.WaitJiffy(8);
+        // soundPlayerEvent ($897C): a falling tune for bad news, a rising one for good, on voice 1.
+        var p = game.Vbi.Pokey;
+        bool bad = PlayerEvents.Quality[r.Event] < 0;
+        var tune = bad ? BadNewsTune : GoodNewsTune;
+        p[Vbi.Audf(1)] = 0;
+        p[Vbi.Audc(1)] = 0xA4;
+        for (int i = tune.Length - 1; i >= 0; i--)
+        {
+            p[Vbi.Audf(1)] = tune[i];
+            yield return game.WaitJiffy(bad ? 0x14 : 8);
+        }
+        p[Vbi.Audc(1)] = 0;
         // addMessageEnd ($810F): the text scrolls (handler $0E).
         t.Running = false;
         t.EventShown++;
@@ -175,7 +184,9 @@ public static partial class PlayerTurn
         byte pos = 0, fine = 0;
         game.Vbi.Handler = () =>
         {
-            // v15 ($80B7): one character every 8 frames; each pass of the end marker counts.
+            // v15 ($80B7): the score's tune if it is on, then one character every 8 frames; each pass
+            // of the end marker counts.
+            if (game.Vbi.Music.On != 0) game.Vbi.Music.Tick();
             if (fine != 0) { fine--; return; }
             if (++pos == end) { t.EventShown++; pos = 0; }
             fine = 7;
@@ -258,6 +269,7 @@ public static partial class PlayerTurn
     static IEnumerable ToTown(Game game, Turn t)
     {
         t.Running = false;
+        game.Vbi.Silence();
         ClearWalker(t);
         // sub_5064: the town's players 2 and 3 borrow the first quarter-row's positions.
         game.State.MountainsX[0] = 0;
@@ -275,6 +287,7 @@ public static partial class PlayerTurn
     static IEnumerable ToMap(Game game, Turn t)
     {
         t.Running = false;
+        game.Vbi.Silence();
         ClearWalker(t);
         // The drawing before the first wait can run past the vertical blank when the caller has
         // just drawn a lot (the outfit message and the money).
@@ -291,7 +304,8 @@ public static partial class PlayerTurn
         var v = game.Vbi;
         byte cp = g.CurrentPlayer;
         yield return ToTown(game, t);
-        t.WarnTime = 0x1E; t.Warn = 1;
+        v.StartWarning();
+        v.TurnTime = () => t.Time;
         v.Timers[1] = 4;
         t.Phase = 4;
         game.Vbi.Handler = () => Vbl(game, t);
@@ -404,7 +418,8 @@ public static partial class PlayerTurn
                 {
                     ShowStatic(game, 13);
                     v.Timers[1] = 0xFA;
-                    if (t.Time < t.WarnTime) t.WarnTime = (byte)(t.Time - 1);
+                    if (t.Time < v.WarnTime) v.WarnTime = (byte)(t.Time - 1);
+                    v.Silence();
                     Second(game, 15, "THEN COME BACK.");
                     t.Outfit = t.Building; t.Marked = 0xFF;
                 }
@@ -489,10 +504,30 @@ public static partial class PlayerTurn
         t.Outfit = t.Building;
         ShowStatic(game, 20);
         t.MuleX = t.X;
-        do yield return MuleStep(game, t, 0xFF); while (t.MuleY >= 0x39);
-        do yield return MuleStep(game, t, 1); while (t.MuleY < 0x50);
+        // The outfit's sound on voice 4: a tone falling as the mule goes up into the shop, rising as it
+        // comes back down.
+        var p = game.Vbi.Pokey;
+        byte f = 0xFF; // $8B
+        do
+        {
+            p[Vbi.Audc(4)] = 0xC8;
+            p[Vbi.Audf(4)] = f;
+            f -= 2;
+            yield return MuleStep(game, t, 0xFF);
+        }
+        while (t.MuleY >= 0x39);
+        p[Vbi.Audc(4)] = 0xC5;
+        do
+        {
+            p[Vbi.Audc(4)] = 0xC8;
+            p[Vbi.Audf(4)] = f;
+            f += 2;
+            yield return MuleStep(game, t, 1);
+        }
+        while (t.MuleY < 0x50);
         t.Y = 0x3C;
         yield return game.WaitJiffy(6);
+        p[Vbi.Audc(4)] = 0;
         t.Mask = 0x0D;
         game.Emit(new MuleOutfittedEvent(g.CurrentPlayer, t.Outfit));
         game.Vbi.Timers[0] = 0xC8;
@@ -514,7 +549,8 @@ public static partial class PlayerTurn
         var g = game.State;
         t.Running = false;
         game.Vbi.Handler = null;
-        t.Warn = 0;
+        game.Vbi.Warn = 0;
+        game.Vbi.Silence();
         game.Trace?.Invoke("gamble");
         int x = g.NumRound >> 2;
         int won = game.Rng.Below((byte)(t.Time << 1)) + GamblingBonus[x];
@@ -528,17 +564,28 @@ public static partial class PlayerTurn
         yield return EndOfTurn(game, t);
     }
 
-    const int PubAnimationFrames = 157;
-
+    /// <summary>sub_2CE1: the pub's tune (handler $10), then silence.</summary>
     static IEnumerable PubAnimation(Game game)
     {
-        yield return game.Frames(PubAnimationFrames);
+        var v = game.Vbi;
+        v.Silence();
+        v.Music.InitPub();
+        bool done = false;
+        v.Handler = () =>
+        {
+            if (!v.Music.PubTick()) return;
+            done = true;
+            v.Handler = null;
+        };
+        while (!done) yield return null;
+        v.Silence();
     }
 
     /// <summary>TimeHasRunOut ($6C71).</summary>
     static IEnumerable TimeOut(Game game, Turn t, bool cpu = false)
     {
         t.Toggle = 0;
+        game.Vbi.Silence();
         game.Trace?.Invoke("timeout");
         ShowStatic(game, 10);
         // After a CPU's working out the message drawing can run past the vertical blank.
@@ -548,6 +595,7 @@ public static partial class PlayerTurn
         yield return game.WaitJiffy(0xC8);
         t.Running = false;
         game.Vbi.Handler = null;
+        game.Vbi.Silence();
         yield return EndOfTurn(game, t);
     }
 
@@ -690,6 +738,9 @@ public static partial class PlayerTurn
         byte time = t.Time;
         t.Toggle = 0; t.Phase = 0; t.Map = 1; t.HasMule = 1;
         t.Running = false; t.Time = 0xFF;
+        // sub_1363: the sound reset, all voices silent.
+        game.Vbi.Pokey[Vbi.Audctl] = 0;
+        game.Vbi.Silence();
         t.MuleWalkOnly = true;
         while (t.MuleX >= 0x28 && t.MuleX < 0xDC) yield return null;
         t.MuleWalkOnly = false;
@@ -750,6 +801,7 @@ public static partial class PlayerTurn
     static bool Wampus(Game game, Turn t)
     {
         var v = game.Vbi;
+        v.Pokey[Vbi.Audc(2)] = 0; // its call, one frame on voice 2
         if (t.Mask != 0 || t.Map == 0 || t.Outfit != 0 || v.Button[t.Ctrl] == 0) return false;
         if (t.X == t.WampusX && (byte)(t.Y + 4) == t.WampusY && t.WampusVisible != 0)
         {
@@ -762,6 +814,8 @@ public static partial class PlayerTurn
         {
             // It shows, unless the walker is in the mountains.
             t.WampusVisible = 1;
+            v.Pokey[Vbi.Audc(2)] = 0xA3;
+            v.Pokey[Vbi.Audf(2)] = (byte)(t.WampusY >> 2); // higher up the screen, higher
             t.WampusTime = (byte)(y + 1);
             game.Emit(new WampusEvent(true, t.WampusX2, t.WampusY));
             return false;
@@ -783,6 +837,7 @@ public static partial class PlayerTurn
         var v = game.Vbi;
         t.WampusX = 0;
         ClearWalker(t);
+        v.Silence();
         t.WampusTime = 0xFF;
         t.WampusVisible = 0;
         ushort bonus = WampusBonus[g.NumRound >> 2];
@@ -811,7 +866,7 @@ public static partial class PlayerTurn
         t.Phase++;
         if (t.Phase != 6) return;
         t.Phase = 0;
-        if ((t.Time & 0x80) != 0) { MuleWalksOff(t); return; }
+        if ((t.Time & 0x80) != 0) { MuleWalksOff(game, t); return; }
         byte dir = (byte)(v.Stick[t.Ctrl] | t.Mask);
         t.Dir = dir;
         int vy = (dir & 3) - 1;
@@ -834,9 +889,26 @@ public static partial class PlayerTurn
         t.Y = t.NewY;
         t.X = t.NewX;
         t.Hpos0 = t.X;
+        Footstep(game, t);
         if (t.Map != 0) DrawWalker(g, t);
         if (t.HasMule == 0) return;
         if (t.Map == 0) TownMule(t); else MapMule(t);
+    }
+
+    /// <summary>$56AA: a frame whose flag byte is set puts the species' footstep on voice 3; any other
+    /// frame stops it.</summary>
+    static void Footstep(Game game, Turn t)
+    {
+        var g = game.State;
+        var p = game.Vbi.Pokey;
+        byte cp = g.CurrentPlayer;
+        byte flag = t.Map != 0 ? g.WalkerMap[cp * 0x80 + t.Anim] : g.WalkerTown[cp * 0x110 + t.Anim];
+        if (flag != 0)
+        {
+            p[Vbi.Audf(3)] = g.PlayersStepFreq[cp];
+            p[Vbi.Audc(3)] = g.PlayersStepCtl[cp];
+        }
+        else p[Vbi.Audc(3)] = 0;
     }
 
     /// <summary>$577C: doors, money and the mule rules at the town buildings.</summary>
@@ -920,12 +992,13 @@ public static partial class PlayerTurn
     static void ClearWalker(Turn t) => Array.Clear(t.Pm0);
 
     /// <summary>$5853: when the time has run out, a mule being led walks off the screen.</summary>
-    static void MuleWalksOff(Turn t)
+    static void MuleWalksOff(Game game, Turn t)
     {
         if (t.HasMule == 0) return;
         if (t.MuleX < 0x7B) { t.MuleX -= 4; t.Anim = 0x10; }
         else { t.MuleX += 4; t.Anim = 0; }
         t.Toggle ^= 8;
+        game.Vbi.Pokey[Vbi.Audc(1)] = (byte)(t.Toggle | 0xA0); // its steps on voice 1
         t.Anim += t.Toggle;
     }
 

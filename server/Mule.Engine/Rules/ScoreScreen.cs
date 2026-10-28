@@ -76,8 +76,10 @@ public static class ScoreScreen
         else v.InitButtons();
         game.Trace?.Invoke("score wait");
         yield return Wait(game, result.Message == "" ? 1 : 0);
-        // loc_6F60: the screen cleared, no handler, the sound off.
+        // loc_6F60: the tune over, the screen cleared, no handler, the sound off.
+        v.Music.On = 0;
         v.Handler = null;
+        v.Silence();
         game.Trace?.Invoke("score end");
     }
 
@@ -91,8 +93,13 @@ public static class ScoreScreen
         var row = new byte[] { 50, 86, 122, 158 };       // $B1B5, $FF once there
         byte count = 8;                                  // $A9
         bool founder = g.NumRound == 12 && g.SuccessScore >= 3;
+        // sub_2527 ($71E1): the score's tune starts.
+        v.Music.Init(g.NumRound);
+        v.Presses = 0;
+        v.SoundOnPress = 0;
         v.Handler = () =>
         {
+            v.Music.Tick();
             v.Presses = 0;
             count--;
             if ((count & 0x80) != 0) { count = 5; return; }
@@ -107,8 +114,8 @@ public static class ScoreScreen
             game.Emit(new ScoreWalkEvent(s, x[s], y[s]));
         };
         while ((row[0] & row[1] & row[2] & row[3]) != 0xFF) yield return null;
-        // The music handler ($02) takes over.
-        v.Handler = null;
+        // The music handler ($02, v03) takes over.
+        v.Handler = v.Music.Tick;
     }
 
     /// <summary>animFirstFounder ($7000): the leader's colour pulses up and down 17 times, a frame a
@@ -128,6 +135,7 @@ public static class ScoreScreen
         byte count = 0x0F;
         v.Handler = () =>
         {
+            v.Music.Tick();
             if (--count != 0) return;
             count = 6;
             x -= 4;
@@ -135,7 +143,7 @@ public static class ScoreScreen
             game.Emit(new ScoreWalkEvent(0, x, 0));
         };
         while (g.PlayersGoodShort[0] != 0) yield return null;
-        v.Handler = null;
+        v.Handler = v.Music.Tick;
     }
 
     /// <summary>drawMessageScore ($89D3): after round 12 the colony's rating; before, any shortage of

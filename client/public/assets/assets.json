@@ -407,6 +407,14 @@
    "height": 48,
    "group": "Auctions",
    "what": "The store's booth at the top of a goods auction."
+  },
+  {
+   "key": "font",
+   "file": "font.png",
+   "width": 128,
+   "height": 32,
+   "group": "Text",
+   "what": "The lettering: 64 characters of 8 x 8 in four rows of 16, in the Atari's order (space ! \" # $ % & ' ( ) * + , - . / 0-9 : ; < = > ? @ A-Z [ \\ ] ^ _), white on transparent; tinted per text. Drawn 2x (small text) or 4x (titles). The original's own set, from the memory snapshot (tools/atari_font.py)."
   }
  ]
 }

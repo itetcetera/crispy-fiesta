@@ -54,6 +54,9 @@ public sealed class GameState
     public readonly byte[] SprRiver = new byte[256];            // $BA00 river and store sprite rows (player 3 on the map)
     public readonly byte[] WalkerTown = new byte[4 * 0x110];      // $09C0 each player's walking frames in town (loaded with the species)
     public readonly byte[] WalkerMap = new byte[4 * 0x80];        // $0E00 each player's walking frames on the map
+    public readonly byte[] PlayersStepFreq = new byte[4];       // $0930 each player's footstep sound: AUDF3
+    public readonly byte[] PlayersStepCtl = new byte[4];        // $0934 and AUDC3 (2 lower during the goods auctions)
+    public readonly byte[] AuctionStep = new byte[4];           // $B315 each player's walking frame on the auction screens (0 or $18)
     public readonly byte[] MapScreen = new byte[400];           // $B528 the map's characters (they decide the walker's collisions)
 
     // Per player, per job / good

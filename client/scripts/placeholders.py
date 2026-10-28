@@ -52,6 +52,9 @@ ENTRIES = [
       for g, c in zip(GOODS, ["#7cc35a", "#f2d24b", "#a0a0b0", "#5fd0d0"])],
     ("good-land", 48, 48, "Auctions", "The land auction sign.", "#d9b36c"),
     ("store-booth", 64, 48, "Auctions", "The store's booth at the top of a goods auction.", "#b07a4a"),
+    ("font", 128, 32, "Text", "The lettering: 64 characters of 8 x 8 in four rows of 16, in the Atari's order (space "
+     "! \" # $ % & ' ( ) * + , - . / 0-9 : ; < = > ? @ A-Z [ \\ ] ^ _), white on transparent; tinted per text. "
+     "Drawn 2x (small text) or 4x (titles). The original's own set, from the memory snapshot (tools/atari_font.py).", "#ffffff"),
 ]
 
 

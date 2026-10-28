@@ -45,6 +45,7 @@ public sealed class Atari800 : IBus
     readonly byte[] _hposp = new byte[4], _hposm = new byte[4], _sizep = new byte[4], _grafp = new byte[4];
     byte _sizem, _grafm, _prior, _vdelay, _gractl;
     readonly byte[] _collision = new byte[16]; // M0PF..M3PF, P0PF..P3PF, M0PL..M3PL, P0PL..P3PL
+    readonly byte[] _color = new byte[9];      // COLPM0..3, COLPF0..3, COLBK
 
     // ANTIC
     byte _dmactl, _chactl, _hscrol, _vscrol, _pmbase, _chbase, _nmien, _nmist = 0x1F;
@@ -58,6 +59,9 @@ public sealed class Atari800 : IBus
 
     /// <summary>Playfield pixels for the current scanline in color clocks (0 = background, 1..4 = PF0..PF3).</summary>
     readonly byte[] _pf = new byte[228];
+
+    /// <summary>The POKEY sound registers as last written: AUDF1, AUDC1 ... AUDF4, AUDC4, AUDCTL.</summary>
+    public readonly byte[] Pokey = new byte[9];
 
     public Atari800(byte[] memoryImage, IRandomByteSource random)
     {
@@ -136,10 +140,17 @@ public sealed class Atari800 : IBus
                     else if (r == 0x0C) _sizem = v;
                     else if (r < 0x11) _grafp[r - 0x0D] = v;
                     else if (r == 0x11) _grafm = v;
+                    else if (r >= 0x12 && r <= 0x1A) _color[r - 0x12] = v;
                     else if (r == 0x1B) _prior = v;
                     else if (r == 0x1C) _vdelay = v;
                     else if (r == 0x1D) _gractl = v;
                     else if (r == 0x1E) Array.Clear(_collision);
+                    break;
+                }
+            case 0xD200: // POKEY: the sound registers, for the sound tests
+                {
+                    int r = a & 0x0F;
+                    if (r < Pokey.Length) Pokey[r] = v;
                     break;
                 }
             case 0xD400:
@@ -210,6 +221,8 @@ public sealed class Atari800 : IBus
         }
         bool display = Line >= FirstDisplayLine && Line < VblankLine && (_dmactl & 0x20) != 0;
         Array.Clear(_pf);
+        if (Picture != null) Array.Clear(_hires);
+        _lineHires = false;
         bool dli = false;
         if (display && !_dlJvbWait)
         {
@@ -217,6 +230,7 @@ public sealed class Atari800 : IBus
             if (_modeLineLeft > 0)
             {
                 dma += RenderPlayfieldLine();
+                _lineHires = _mode is 2 or 3 && PlayfieldWidth != 0;
                 if (_modeLineLeft == 1 && (_dlInstr & 0x80) != 0) dli = true;
                 _modeLineRow++;
                 _modeLineLeft--;
@@ -224,6 +238,7 @@ public sealed class Atari800 : IBus
         }
         if (Line >= FirstDisplayLine && Line < VblankLine) dma += LoadPlayerMissileData();
         ComputeCollisions();
+        if (Picture != null) DrawLine();
 
         if (dli && (_nmien & 0x80) != 0) { _nmist = (byte)(0x80 | 0x1F); Cpu.Nmi(); }
         if (Line == VblankLine)
@@ -250,7 +265,12 @@ public sealed class Atari800 : IBus
         _cycleDebt = Math.Max(0, used - budget);
 
         Line++;
-        if (Line == Lines) { Line = 0; Frame++; }
+        if (Line == Lines)
+        {
+            Line = 0;
+            Frame++;
+            if (Picture != null) Array.Copy(_drawing, Picture, Picture.Length);
+        }
     }
 
     // ---------------------------------------------------------------- ANTIC
@@ -360,6 +380,9 @@ public sealed class Atari800 : IBus
             // Hi-res pixels collide as PF2; two pixels per color clock.
             for (int p = 0; p < 4; p++)
                 if ((data & (0xC0 >> (2 * p))) != 0) Plot(x0 + p, 1, 3);
+            if (Picture != null)
+                for (int p = 0; p < 8; p++)
+                    if ((data & (0x80 >> p)) != 0 && x0 * 2 + p is >= 0 and < 456) _hires[x0 * 2 + p] = 1;
             return;
         }
         // Modes 4/5: four 2-bit pixels per character.
@@ -440,6 +463,45 @@ public sealed class Atari800 : IBus
     public byte DebugGrafM => _grafm;
     public byte[] DebugHposM => _hposm;
     public byte DebugSizeM => _sizem;
+    /// <summary>The display list as text: each mode line's first scanline, mode, and for the text modes
+    /// its characters (internal codes as ASCII, colour bits as a digit prefix in modes 6 and 7).</summary>
+    public List<string> DebugDisplayList()
+    {
+        var r = new List<string>();
+        ushort pc = (ushort)(Ram[0x230] | Ram[0x231] << 8), scan = 0;
+        int line = FirstDisplayLine;
+        for (int guard = 0; guard < 300 && line < VblankLine; guard++)
+        {
+            byte ins = Ram[pc++];
+            int mode = ins & 15;
+            if (mode == 0) { line += ((ins >> 4) & 7) + 1; continue; }
+            if (mode == 1)
+            {
+                if ((ins & 0x40) != 0) break;
+                pc = (ushort)(Ram[pc] | Ram[(ushort)(pc + 1)] << 8);
+                line++;
+                continue;
+            }
+            if ((ins & 0x40) != 0) { scan = (ushort)(Ram[pc] | Ram[(ushort)(pc + 1)] << 8); pc += 2; }
+            int bytes = ModeBytes(mode);
+            var sb = new System.Text.StringBuilder($"{line,3} m{mode:X}{((ins & 0x80) != 0 ? "*" : " ")} {scan:X4} ");
+            if (mode <= 7)
+                for (int i = 0; i < bytes; i++)
+                {
+                    byte c = Ram[(ushort)(scan + i)];
+                    int code = mode >= 6 ? c & 0x3F : c & 0x7F;
+                    char ch = code < 64 ? (char)(code + 32) : '~';
+                    if (mode >= 6 && c != 0) sb.Append((char)('0' + (c >> 6)));
+                    sb.Append(ch);
+                }
+            r.Add(sb.ToString().TrimEnd());
+            line += ModeHeight(mode);
+            scan += (ushort)bytes;
+        }
+        return r;
+    }
+
+    public string DebugPm => $"dmactl {_dmactl:X2} gractl {_gractl:X2} pmbase {_pmbase:X2} prior {_prior:X2} hposp {Convert.ToHexString(_hposp)} colors {Convert.ToHexString(_color)}";
 
     void ComputeCollisions()
     {
@@ -493,5 +555,84 @@ public sealed class Atari800 : IBus
                 }
             }
         }
+    }
+
+    // ---------------------------------------------------------------- picture
+
+    /// <summary>Picture width (half color clocks 64 to 448, as ANTIC's wide playfield) and height (the
+    /// displayed lines 8 to 247).</summary>
+    public const int PictureWidth = 384, PictureHeight = 240, PictureLeft = 32;
+
+    /// <summary>The last whole frame as 0xRRGGBB pixels, once <see cref="EnablePicture"/> was called;
+    /// for reference shots of the original's screens (tests only, not the game).</summary>
+    public uint[]? Picture { get; private set; }
+    uint[] _drawing = Array.Empty<uint>();
+    readonly byte[] _hires = new byte[456];
+    bool _lineHires;
+
+    public void EnablePicture()
+    {
+        Picture = new uint[PictureWidth * PictureHeight];
+        _drawing = new uint[PictureWidth * PictureHeight];
+    }
+
+    /// <summary>Composes the current scanline: playfield (hi-res text as playfield 1's luminance on
+    /// playfield 2), then the players and missiles by the priority register.</summary>
+    void DrawLine()
+    {
+        int y = Line - FirstDisplayLine;
+        if (y < 0 || y >= PictureHeight) return;
+        bool fifth = (_prior & 0x10) != 0;
+        for (int px = 0; px < PictureWidth; px++)
+        {
+            int x = PictureLeft + px / 2;
+            byte pf = _pf[x];
+            byte c = pf == 0 ? _color[8] : _color[3 + pf];
+            if (_lineHires && x >= PlayfieldLeft && x < PlayfieldLeft + PlayfieldWidth)
+                c = _hires[PictureLeft * 2 + px] != 0 ? (byte)((_color[6] & 0xF0) | (_color[5] & 0x0E)) : _color[6];
+            byte m = _pmMask[x];
+            if (m != 0)
+            {
+                int pl = m & 0x0F, mi = m >> 4;
+                if (fifth && mi != 0) { if (pf == 0 || (_prior & 4) == 0) c = _color[7]; mi = 0; }
+                pl |= mi; // a missile shows in its player's color
+                if (pl != 0)
+                {
+                    int n = (pl & 1) != 0 ? 0 : (pl & 2) != 0 ? 1 : (pl & 4) != 0 ? 2 : 3;
+                    bool pfFirst = pf != 0 && ((_prior & 4) != 0 || ((_prior & 8) != 0 && pf <= 2) || ((_prior & 2) != 0 && n >= 2));
+                    if (!pfFirst)
+                    {
+                        c = _color[n];
+                        if ((_prior & 0x20) != 0 && (n == 0 && (pl & 2) != 0 || n == 2 && (pl & 8) != 0)) c |= _color[n + 1];
+                    }
+                }
+            }
+            _drawing[y * PictureWidth + px] = Rgb(c);
+        }
+    }
+
+    static readonly double[] LumaMult =
+    {
+        0.6941, 0.7091, 0.7241, 0.7401, 0.7560, 0.7741, 0.7931, 0.8121,
+        0.8260, 0.8470, 0.8700, 0.8930, 0.9160, 0.9420, 0.9690, 1.0000,
+    };
+
+    /// <summary>An NTSC Atari color (hue in the high nibble, luminance in the low) as 0xRRGGBB, by the
+    /// Atari800 emulator's default NTSC palette (colorburst at 303 degrees in YIQ, 26.8 degrees a hue,
+    /// gamma 2.35).</summary>
+    public static uint Rgb(byte c)
+    {
+        int hue = c >> 4, lum = c & 0x0F;
+        double angle = (303 + (hue - 1) * 26.8) * Math.PI / 180, sat = hue == 0 ? 0 : 0.175;
+        double i = Math.Cos(angle) * sat, q = Math.Sin(angle) * sat;
+        double y = (LumaMult[lum] - LumaMult[0]) / (LumaMult[15] - LumaMult[0]);
+        static int Ch(double v)
+        {
+            v = Math.Pow(Math.Clamp(v, 0, 1), 2.35);
+            v = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.Pow(v, 1 / 2.4) - 0.055;
+            return (int)Math.Clamp(v * 255, 0, 255);
+        }
+        int r = Ch(y + 0.9563 * i + 0.6210 * q), g = Ch(y - 0.2721 * i - 0.6474 * q), b = Ch(y - 1.1070 * i + 1.7046 * q);
+        return (uint)(r << 16 | g << 8 | b);
     }
 }

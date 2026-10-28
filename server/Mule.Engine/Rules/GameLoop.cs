@@ -106,6 +106,10 @@ public static class GameLoop
                 game.Trace?.Invoke("no auction");
                 yield return DrawMap(game, "no auction map");
                 game.Emit(new MessageEvent("NO NEW PLOTS FOR SALE."));
+                // The message ends in the beep character ($07). The map's drawing can end so late in
+                // a frame that the message runs past the vertical blank first.
+                if (game.Race?.Invoke("no plots late") == true) yield return null;
+                yield return game.WaitSoundThenBeep();
                 yield return game.WaitJiffyLevel();
             }
         }
@@ -126,6 +130,7 @@ public static class GameLoop
         {
             game.Trace?.Invoke("ship back");
             game.Emit(new MessageEvent("THE SHIP IS BACK!"));
+            yield return null; // the message and the title take a frame to put up
             yield return RoundEventScreens.TransportShipLand(game);
         }
         else
@@ -138,6 +143,7 @@ public static class GameLoop
         Production.InitVarsFromMaps(g);
         Prices.CalcGoodsPriceFromNow(g, game.Rng);
         yield return game.Frames(game.Think?.Invoke("prices") ?? PricesFrames);
+        StepsQuieter(g, 254); // wait2 ($487A): the footsteps 2 quieter for the auctions
         foreach (byte good in new byte[] { Good.Smithore, Good.Crystite, Good.Food, Good.Energy })
         {
             if (good == Good.Food) g.GoodsStoreNb[Good.Crystite] = 0;
@@ -145,9 +151,16 @@ public static class GameLoop
             yield return GoodsAuction.Run(game, good);
         }
         g.LevelAuctionTimeWait = LevelsAuctionTimeWait[g.Level];
+        StepsQuieter(g, 2);
         Prices.BuildAndCalcPriceMule(g);
         game.Trace?.Invoke("score");
         yield return ScoreScreen.CalcAndDraw(game, score);
+    }
+
+    /// <summary>wait2 ($487A): adds to every player's footstep control.</summary>
+    static void StepsQuieter(GameState g, byte add)
+    {
+        for (int x = 3; x >= 0; x--) g.PlayersStepCtl[x] += add;
     }
 
     /// <summary>printAndWaitPlayersButtons ($307D) and waitPlayersButtons ($308A): until every human has
@@ -207,7 +220,15 @@ public static class GameLoop
         game.Trace?.Invoke("prod anim");
         if (g.NumRound == 0) yield break;
         game.Emit(new TitleEvent("PRODUCTION"));
+        // The title and the round number sometimes take the original past a frame (docs/PLAN.md,
+        // timing effects).
+        if (game.Race?.Invoke("prod title late") == true) yield return null;
+        // sub_1363: the sound reset.
+        var v = game.Vbi;
+        v.Pokey[Vbi.Audctl] = 0;
+        v.Silence();
         yield return game.WaitJiffy(6);
+        v.Pokey[Vbi.Audf(1)] = 0xC8; // left set, silent, for the round event after
         var shown = g.PlotsTemp;
         Array.Clear(shown);
         bool remaining = false;  // byte_89

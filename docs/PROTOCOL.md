@@ -36,13 +36,17 @@ the game does not wait for them, except at the "press all buttons" screens (the 
 `lobby` — `{ code, phase: Lobby | Playing | Over, hostId, members: [{ id, name, race, connected, seat }] }`,
 sent whenever anything in the room changes.
 
-`frame` — `{ tick, events, state, full }`, about 30 a second while a game runs (one per 2 game
-frames; the game runs at 60 frames a second).
+`frame` — `{ tick, events, state, full, pokey }`, about 30 a second while a game runs (one per 2
+game frames; the game runs at 60 frames a second).
 
 - `events`: what happened, in order, each an object with `t` (the type, below) and its fields.
 - `state`: the visible values that changed since the last frame, each an array of numbers (a
   single value is a one-element array). With `full` true (sent right after joining a game under
   way) it holds every value.
+- `pokey`: the sound, as the original's sound chip (POKEY) registers, one entry for each game frame
+  they changed in: `[tick, AUDF1, AUDC1, AUDF2, AUDC2, AUDF3, AUDC3, AUDF4, AUDC4, AUDCTL]`. Play
+  each entry from its tick, a 60th of a second apart, and hold the registers until the next. A full
+  frame holds one entry, the registers now.
 
 ### State values
 

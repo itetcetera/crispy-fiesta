@@ -30,6 +30,41 @@ public sealed class Vbi
 
     static readonly byte[] SoundLength = { 2, 2, 2, 2, 21, 8, 128 }; // $5E2F
     static readonly byte[] SoundControl = { 173, 173, 173, 173, 173, 170, 2 }; // $5E36
+    static readonly byte[] SoundFreq = { 0x10, 0x18, 0x20, 0x28, 0x30, 0x60, 0x80 }; // $5E28
+
+    /// <summary>The POKEY sound registers as the game last wrote them: AUDF1, AUDC1 ... AUDF4, AUDC4, AUDCTL.</summary>
+    public readonly byte[] Pokey = new byte[9];
+    public const int Audctl = 8;
+    public static int Audf(int voice) => 2 * (voice - 1);
+    public static int Audc(int voice) => 2 * (voice - 1) + 1;
+
+    /// <summary>The RANDOM register read in a vertical blank for looks and sound only (the original's
+    /// hardware noise, not the game's random numbers); the tests answer it from the original.</summary>
+    public Func<byte> Noise = () => (byte)System.Random.Shared.Next(256);
+
+    /// <summary>The music player, on the same registers.</summary>
+    public readonly Music Music;
+
+    public Vbi() => Music = new Music(Pokey);
+
+    /// <summary>sub_136D: all four voices silent (frequencies and controls to 0).</summary>
+    public void Silence() => Array.Clear(Pokey, 0, 8);
+
+    // The low-time warning (sub_5E98, voices 1 and 2): on while a turn runs ($B33C).
+    public byte Warn;                                   // $B33C
+    public byte WarnTime = 0x1E;                        // $B33A: it sounds once the time is below this
+    public byte WarnCount, WarnLevel, WarnTone;         // $B33E, $B33F, $B340
+    /// <summary>sub_3101: the warning armed, sounding below 30.</summary>
+    public void StartWarning()
+    {
+        WarnTime = 0x1E;
+        WarnCount = 1;
+        Warn = 1;
+        WarnTone = 0;
+    }
+
+    /// <summary>The time left ($D3), which the warning reads.</summary>
+    public Func<byte> TurnTime = () => 0;
 
     /// <summary>Online only (not in the original): seats whose player dropped out a while ago. The "press
     /// all buttons" waits count them as pressed, so the others are not held up (Marcus, 2026-10-27).</summary>
@@ -71,8 +106,40 @@ public sealed class Vbi
             if (SoundOnPress != 0) Sound = (byte)x;
         }
         Handler?.Invoke();
+        if (Warn != 0) WarnTick();
         if ((Sound & 0x80) == 0) SoundTick();
     }
+
+    /// <summary>sub_5E98: below the warning time, a two-tone alarm on voices 1 and 2 that pulses faster as
+    /// the time runs out; at no time left, both voices off and the warning with them.</summary>
+    void WarnTick()
+    {
+        byte time = TurnTime();
+        if (time == 0)
+        {
+            Pokey[Audf(1)] = Pokey[Audc(1)] = Pokey[Audf(2)] = Pokey[Audc(2)] = 0;
+            Warn = 0;
+            return;
+        }
+        if (time >= WarnTime) return;
+        if (--WarnCount == 0)
+        {
+            Pokey[Audc(1)] = WarnLevel = 0xA2;
+            Pokey[Audc(2)] = 0x81;
+            WarnTone = (byte)((WarnTone & 1) ^ 1);
+            Pokey[Audf(1)] = Pokey[Audf(2)] = WarnTones[WarnTone];
+            WarnCount = time;
+            return;
+        }
+        byte level = (byte)(WarnLevel - 1);
+        if (level < 0xA0) level = 0xA0;
+        Pokey[Audc(1)] = WarnLevel = level;
+        if (level < 0xA1) return;
+        if (level == 0xA1) Pokey[Audc(2)] = 0;
+        Pokey[Audf(1)] = WarnTones[WarnTone];
+    }
+
+    static readonly byte[] WarnTones = { 0x0F, 0x0A }; // $5F05
 
     /// <summary>sub_5E3D: a new effect starts only when the previous one has run out.</summary>
     void SoundTick()
@@ -80,24 +147,29 @@ public sealed class Vbi
         int x = Sound;
         if (SoundLeft == 0)
         {
+            Pokey[Audctl] = 0;
             SoundLeft = SoundLength[x];
-            SoundLevel = SoundControl[x];
+            Pokey[Audf(4)] = SoundFreq[x];
+            Pokey[Audc(4)] = SoundLevel = SoundControl[x];
             return;
         }
         if (x < 6)
         {
             if (--SoundLeft == 0) { EndSound(); return; }
-            if (SoundLeft < 14) SoundLevel--;
+            if (SoundLeft < 14) Pokey[Audc(4)] = --SoundLevel;
             return;
         }
         SoundLeft >>= 1;
+        Pokey[Audf(4)] = SoundLeft;
         SoundLevel += 2;
-        if (SoundLevel >= 12) EndSound();
+        if (SoundLevel >= 12) { EndSound(); return; }
+        Pokey[Audc(4)] = SoundLevel;
     }
 
     void EndSound()
     {
         Sound = 0xFF;
         SoundLevel = 0;
+        Pokey[Audf(4)] = Pokey[Audc(4)] = 0;
     }
 }

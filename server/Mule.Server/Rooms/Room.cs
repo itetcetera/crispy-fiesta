@@ -26,9 +26,11 @@ public sealed class Member
 public sealed record LobbyView(string Code, RoomPhase Phase, string HostId, IReadOnlyList<MemberView> Members);
 public sealed record MemberView(string Id, string Name, string Race, bool Connected, int Seat);
 
-/// <summary>One tick's worth (or a few) of game for the browsers: the events in order and the visible
-/// values that changed.</summary>
-public sealed record FrameMessage(long Tick, IReadOnlyList<JsonObject> Events, IReadOnlyDictionary<string, int[]> State, bool Full);
+/// <summary>One tick's worth (or a few) of game for the browsers: the events in order, the visible
+/// values that changed, and the sound chip's registers each tick they changed ([tick, AUDF1, AUDC1 ...
+/// AUDF4, AUDC4, AUDCTL]; a full frame holds the registers now).</summary>
+public sealed record FrameMessage(long Tick, IReadOnlyList<JsonObject> Events, IReadOnlyDictionary<string, int[]> State, bool Full,
+    IReadOnlyList<int[]>? Pokey = null);
 
 public sealed class RoomException(string message) : Exception(message);
 
@@ -52,6 +54,8 @@ public sealed class Room
     readonly List<Member> _members = new();
     readonly PlayerInput[] _inputs = new PlayerInput[MaxPlayers];
     readonly List<JsonObject> _pending = new();
+    readonly List<int[]> _pokey = new();
+    readonly byte[] _lastPokey = new byte[9];
     readonly IRandomSource _rng;
     readonly System.Collections.Concurrent.ConcurrentQueue<string> _wantFull = new();
     Game? _game;
@@ -165,6 +169,12 @@ public sealed class Room
             _game.RunFrame(_inputs);
             Tick++;
             Collect();
+            var regs = _game.Vbi.Pokey;
+            if (!regs.AsSpan().SequenceEqual(_lastPokey))
+            {
+                regs.CopyTo(_lastPokey, 0);
+                _pokey.Add(Pokey(Tick, regs));
+            }
             if (_game.Finished)
             {
                 Phase = RoomPhase.Over;
@@ -181,9 +191,10 @@ public sealed class Room
         {
             if (_game == null) return null;
             var changes = _view.Changes(_game);
-            if (_pending.Count == 0 && changes.Count == 0) return null;
-            var msg = new FrameMessage(Tick, _pending.ToArray(), changes, false);
+            if (_pending.Count == 0 && changes.Count == 0 && _pokey.Count == 0) return null;
+            var msg = new FrameMessage(Tick, _pending.ToArray(), changes, false, _pokey.ToArray());
             _pending.Clear();
+            _pokey.Clear();
             return msg;
         }
     }
@@ -192,7 +203,8 @@ public sealed class Room
     public FrameMessage? FullFrame()
     {
         lock (_sync)
-            return _game == null ? null : new FrameMessage(Tick, Array.Empty<JsonObject>(), StateView.Capture(_game), true);
+            return _game == null ? null : new FrameMessage(Tick, Array.Empty<JsonObject>(), StateView.Capture(_game), true,
+                new[] { Pokey(Tick, _game.Vbi.Pokey) });
     }
 
     /// <summary>A connection that joined a game under way: the ticker sends it a full frame right after
@@ -206,6 +218,14 @@ public sealed class Room
         lock (_sync)
             return new LobbyView(Code, Phase, HostId,
                 _members.Select(m => new MemberView(m.Id, m.Name, m.Race.ToString(), m.Connected, m.Seat)).ToList());
+    }
+
+    static int[] Pokey(long tick, byte[] regs)
+    {
+        var r = new int[10];
+        r[0] = (int)tick;
+        for (int i = 0; i < 9; i++) r[i + 1] = regs[i];
+        return r;
     }
 
     Member Get(string id) => _members.FirstOrDefault(x => x.Id == id) ?? throw new RoomException("You are not in this room.");
