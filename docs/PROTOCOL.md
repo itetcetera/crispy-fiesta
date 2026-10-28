@@ -78,4 +78,7 @@ deck, the CPUs' estimates, scratch tables.
 `MuleBought`, `MuleSoldBack`, `MuleOutfitted`, `MuleRanAway`, `PlotChanged`, `Assay`, `Gambling`,
 `CpuAction`, `Wampus`, `WampusCaught`, `ProductionShown`, `RoundStarted`, `RoundEventShown`,
 `RoundEventStep`, `Ship`, `ScoreShown`, `ScoreWalk`, `FirstFounder`, `ColonyFailed`, `GameOver`.
+
+A `Title`'s text is exactly what the original's printTitle ($4A0B) writes from column 12 of the
+title row, leading spaces and round number included (" LAND GRANT", "DEVELOPMENT #3").
 Their fields are the record fields in `server/Mule.Engine` (search `: GameEvent`).

@@ -201,7 +201,7 @@ public class LandAuctionTests
             {
                 switch (game.Events[seen])
                 {
-                    case TitleEvent { Title: "YOUR STICK BUTTON TO START" }: waiting = true; break;
+                    case TitleEvent { Title: " LAND FOR SALE" }: waiting = true; break;
                     case AuctionStartedEvent a:
                         waiting = false;
                         start = game.Frame;

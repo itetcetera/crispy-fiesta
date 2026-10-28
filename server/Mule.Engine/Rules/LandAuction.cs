@@ -180,7 +180,7 @@ public static class LandAuction
     {
         var g = game.State;
         var v = game.Vbi;
-        game.Emit(new TitleEvent("YOUR STICK BUTTON TO START"));
+        game.Emit(new TitleEvent(" LAND FOR SALE"));
         game.Emit(new MessageEvent("PRESS ALL PLAYER BUTTONS TO GO ON."));
         yield return game.WaitJiffy(6);
         v.InitButtons();

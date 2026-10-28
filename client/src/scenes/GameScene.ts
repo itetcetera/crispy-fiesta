@@ -1,14 +1,15 @@
 // The game screen: drawn again each frame from the model, at the original's positions.
 
 import Phaser from "phaser";
-import { portraitKey, queueAssets, walkerKey, type AssetEntry } from "../assets";
+import { queueAssets, walkerKey, type AssetEntry } from "../assets";
 import {
-  COLUMNS, HEIGHT, PLOT_H, PLOT_W, PLOTS, RIVER, STORE, STREET_BOTTOM, STREET_TOP, TOWN_BOTTOM, TOWN_TOP, WIDTH,
-  atariColor, doorX, textColor, townY, plotX, plotY, px, py, quarterY,
+  COLUMNS, HEIGHT, PLOT_H, PLOT_W, PLOTS, RIVER, STORE, TOWN_TOP, WIDTH,
+  atariColor, townY, plotX, plotY, px, py, quarterY,
 } from "../geometry";
 import { SPECIES } from "../protocol";
 import type { Model } from "../state";
-import { GOOD_KEYS, GOODS, MONTHS, SCORE_KINDS } from "../texts";
+import { CELL, type Cell, cellX, cellY, centre, hiresInk, rightAt, wrapLines } from "../grid";
+import { GOOD_KEYS, GOODS, SCORE_KINDS } from "../texts";
 
 const FONT = '"Courier New", Courier, monospace';
 const ROUND_EVENT_ART: Record<string, string> = {
@@ -45,6 +46,7 @@ export class GameScene extends Phaser.Scene {
   private top!: Phaser.GameObjects.Graphics;
   private images!: Pool<Phaser.GameObjects.Image>;
   private texts!: Pool<Phaser.GameObjects.Text>;
+  private letters!: Pool<Phaser.GameObjects.BitmapText>;
   private sizes = new Map<string, AssetEntry>();
 
   constructor() {
@@ -65,6 +67,15 @@ export class GameScene extends Phaser.Scene {
     this.images = new Pool(() => this.add.image(0, 0, "plain").setDepth(1));
     this.top = this.add.graphics().setDepth(2);
     this.texts = new Pool(() => this.add.text(0, 0, "", { fontFamily: FONT, fontSize: "16px", color: "#fff" }).setDepth(3));
+    // The lettering: the font picture's 64 characters in the Atari's order (docs/ASSETS.md, "font").
+    const font = this.textures.get("font").getSourceImage() as { width: number };
+    const cw = font.width / 16;
+    this.cache.bitmapFont.add("atari", Phaser.GameObjects.RetroFont.Parse(this, {
+      image: "font", width: cw, height: cw, chars: Phaser.GameObjects.RetroFont.TEXT_SET1.slice(0, 64), charsPerRow: 16,
+      "spacing.x": 0, "spacing.y": 0, "offset.x": 0, "offset.y": 0, lineSpacing: 0,
+    }));
+    this.textures.get("font").setFilter(Phaser.Textures.FilterMode.NEAREST);
+    this.letters = new Pool(() => this.add.bitmapText(0, 0, "atari", "").setDepth(3));
   }
 
   update() {
@@ -84,6 +95,7 @@ export class GameScene extends Phaser.Scene {
     this.footer();
     this.images.end();
     this.texts.end();
+    this.letters.end();
   }
 
   // --- helpers ---
@@ -96,17 +108,8 @@ export class GameScene extends Phaser.Scene {
     return atariColor(this.v("PlayersColor", p) || [196, 132, 52, 84][p]);
   }
 
-  private textColor(p: number) {
-    return textColor(this.v("PlayersColor", p) || [196, 132, 52, 84][p]);
-  }
-
   private race(p: number) {
     return SPECIES[this.v("PlayersRace", p)] ?? "Humanoid";
-  }
-
-  private name(p: number) {
-    if (this.v("PlayersAi", p) === 255) return "CPU";
-    return this.d.names()[p] ?? `PLAYER ${p + 1}`;
   }
 
   /** A picture at (x, y) on the canvas, its top left corner unless an origin is given, at its listed size times scale. */
@@ -126,9 +129,20 @@ export class GameScene extends Phaser.Scene {
     return t;
   }
 
-  private wrap(text: string, x: number, y: number, width: number, size = 16, color = "#fff") {
-    const t = this.say(text, x, y, size, color, 0.5, 0);
-    t?.setWordWrapWidth(width).setAlign("center");
+  /** Text on the original's grid: a row of <cell> size from scanline <line>, from column <col>, in an
+   * Atari colour. */
+  private at(text: string, cell: Cell, col: number, line: number, color: number) {
+    if (!text) return;
+    const size = CELL[cell];
+    const font = this.textures.get("font").getSourceImage() as { width: number };
+    const cw = font.width / 16;
+    const o = this.letters.next();
+    o.setText(text.toUpperCase()).setPosition(cellX(cell, col), cellY(line)).setScale(size.w / cw, size.h / cw).setTint(atariColor(color));
+  }
+
+  /** A row of text centred on its grid. */
+  private atCentre(text: string, cell: Cell, line: number, color: number) {
+    this.at(text, cell, centre(text, cell === "n" ? 40 : 20), line, color);
   }
 
   /** The walker (and the mule he leads), facing the way he last moved. */
@@ -145,7 +159,7 @@ export class GameScene extends Phaser.Scene {
 
   private map() {
     const m = this.d.model;
-    this.g.fillStyle(0x000000).fillRect(0, 0, WIDTH, HEIGHT);
+    this.g.fillStyle(atariColor(0x08)).fillRect(0, 0, WIDTH, HEIGHT);
     for (let p = 0; p < PLOTS; p++) {
       const x = px(plotX(p)), y = py(plotY(p));
       this.img(p === STORE ? "store" : RIVER.includes(p) ? "river" : "plain", x, y);
@@ -182,7 +196,8 @@ export class GameScene extends Phaser.Scene {
     if (m.inTurn && this.v("turnMap") === 1) this.walker(1, py);
     const w = m.s["wampus"];
     if (w && w.length === 2) this.img("wampus", px(w[0]), py(w[1]));
-    this.say(m.title, WIDTH / 2, 6, 22, "#fff", 0.5);
+    // printTitle ($4A0B) writes from column 12; the titles carry their own leading spaces.
+    this.at(m.title, "n", 12, 32, hiresInk(0x04, 0x08));
   }
 
   private walker(scale: number, toY: (y: number) => number) {
@@ -197,111 +212,226 @@ export class GameScene extends Phaser.Scene {
     this.img(walkerKey(this.race(cp)), px(x) + 16 * scale, toY(y) + 16 * scale, scale, { ox: 0.5, oy: 1, tint, flip: this.faces("walker", x) });
   }
 
+  /** The town ($2000, mode 4 rows): a black yard from column 8 to 31, the four outfitters along the top
+   * (columns 9, 15, 21, 27), the assay office, land office, pub and the corral along the
+   * bottom, the mule price, and the money line and messages under it. */
   private town() {
     const m = this.d.model;
-    this.img("town-ground", 0, 0);
-    this.img("town-street", 0, townY(STREET_TOP));
-    for (const b of TOWN_TOP) {
-      const c = px(doorX((b.from + b.to) / 2)) + 8;
-      this.img(b.key, c, townY(STREET_TOP), 1, { ox: 0.5, oy: 1 });
+    this.g.fillStyle(atariColor(0x08)).fillRect(0, 0, WIDTH, HEIGHT);
+    this.g.fillStyle(0x000000).fillRect(cellX("n", 8), py(44), cellX("n", 24), py(194) - py(44));
+    const box = (key: string, col: number, cols: number, from: number, to: number) => {
+      const size = this.sizes.get(key);
+      if (!size) return;
+      const o = this.images.next();
+      o.setTexture(key).setOrigin(0, 0).setPosition(cellX("n", col), py(from))
+        .setDisplaySize(cellX("n", cols), py(to) - py(from)).setFlipX(false).setAlpha(1).clearTint();
+    };
+    box("town-ground", 8, 24, 44, 194);
+    TOWN_TOP.forEach((b) => box(b.key, b.from, 4, 52, 84));
+    box("bldg-assay", 9, 4, 116, 172);
+    box("bldg-land", 14, 4, 116, 164);
+    box("bldg-pub", 19, 4, 116, 156);
+    box("bldg-corral", 25, 6, 116, 196);
+    this.g.fillStyle(atariColor(0x0c)).fillRect(cellX("n", 8), py(180), cellX("n", 24), 2);
+    const ink = hiresInk(0x04, 0x08);
+    this.at(m.title, "n", 12, 32, ink);
+    const price = `$${this.v("MulePrice")}`;
+    this.at(price, "n", 26, 180, ink);
+    this.at("MULES", "n", 25, 188, ink);
+    if (m.inTurn) {
+      const cp = this.v("CurrentPlayer");
+      if (cp < 4) this.at(`YOUR MONEY EQUALS $${this.v("PlayersCash", cp)}`, "n", 8, 198, ink);
+      this.walker(1, townY);
     }
-    for (const b of TOWN_BOTTOM) {
-      const c = px(doorX((b.from + b.to) / 2)) + 8;
-      this.img(b.key, c, townY(STREET_BOTTOM), 1, { ox: 0.5, oy: 0 });
+  }
+
+
+  // The auction screens (land and goods) and the goods status screen share the original's layout:
+  // two title rows, the players' columns (sprite positions $57 + $18 each), the store's prices at the
+  // sides, money and units rows, and a message row (the display list at $B500).
+  private static readonly COL_END = [11, 17, 23, 29]; // the last column of each player's numbers
+  private static readonly BK = 0x08;                 // the auction screens' background (COLBK)
+
+  private auctionTop(title: string, second: string, good: number, iconColour: boolean) {
+    this.g.fillStyle(atariColor(GameScene.BK)).fillRect(0, 0, WIDTH, HEIGHT);
+    this.atCentre(title, "w", 31, 0x32);
+    this.atCentre(second, "w", 39, 0x72);
+    if (good >= 0 && iconColour) {
+      const key = good === 5 ? "good-land" : `good-${GOOD_KEYS[good] ?? "food"}`;
+      for (const col of [1, 18]) this.img(key, cellX("w", col) + 16, cellY(31), 0.67, { ox: 0.5 });
     }
-    if (m.inTurn) this.walker(2, townY);
+  }
+
+  /** The auction screens' message: one 20-column row at line 219, or two from 211 when longer. */
+  private messageRow(text: string, colour: number) {
+    const lines = wrapLines(text, 20).slice(0, 2);
+    lines.forEach((l, i) => this.atCentre(l, "w", 219 - 8 * (lines.length - 1) + 8 * i, colour));
+  }
+
+  /** The two rows under the players: money, and units (held, or traded in an auction). */
+  private auctionRows(units: number[] | null, rightLabel: string, unitsLabel: string) {
+    const ink = hiresInk(0x02, 0x08), light = hiresInk(0x0c, 0x08);
+    this.at("MONEY", "n", 2, 191, ink);
+    this.at("MONEY", "n", 32, 191, ink);
+    for (let p = 0; p < 4; p++) {
+      const cash = String(this.v("PlayersCash", p));
+      this.at(cash, "n", rightAt(cash, GameScene.COL_END[p]), 191, ink);
+      if (units) {
+        const u = String(units[p] ?? 0);
+        this.at(u, "n", rightAt(u, GameScene.COL_END[p]), 199, light);
+      }
+    }
+    if (units) {
+      this.at(unitsLabel, "n", 2, 199, light);
+      this.at(rightLabel, "n", 32, 199, light);
+    }
+  }
+
+  /** A player's walker in its auction column: the sprite is drawn from 20 scanlines above its height
+   * ($964A). */
+  private auctionWalker(p: number, line: number) {
+    const x = px(0x57 + 0x18 * p) + 16;
+    this.img(walkerKey(this.race(p)), x, py(line - 20), 1, { ox: 0.5, oy: 0, tint: this.color(p) });
   }
 
   private auction(land: boolean) {
     const m = this.d.model, a = m.auction;
-    this.g.fillStyle(0x101830).fillRect(0, 0, WIDTH, HEIGHT);
-    const good = land ? "good-land" : `good-${GOOD_KEYS[a.good] ?? "food"}`;
-    this.img(good, 16, 8);
-    this.say(land ? `LAND AUCTION  PLOT ${a.plot >= 0 ? a.plot + 1 : ""}` : `${GOODS[a.good] ?? ""} AUCTION`, 76, 14, 20);
-    // The bidding zone: buyers below the top line sell nothing; the store's prices at the edges.
-    const topLine = py(0x54), startLine = py(0x9b);
-    this.g.lineStyle(2, 0x8080ff).lineBetween(0, topLine, WIDTH, topLine).lineBetween(0, startLine, WIDTH, startLine);
-    if (!land) {
-      if (a.priceEnd) this.say(`STORE SELLS $${a.priceEnd}`, WIDTH - 10, topLine - 22, 14, "#ccc", 1);
-      if (a.priceStart) this.say(`STORE BUYS $${a.priceStart}`, WIDTH - 10, startLine + 4, 14, "#ccc", 1);
-      if (a.storeSells) this.img("store-booth", WIDTH / 2, topLine - 4, 1, { ox: 0.5, oy: 1 });
-    } else this.say(`START $${a.priceStart}`, WIDTH - 10, startLine + 4, 14, "#ccc", 1);
-    for (let p = 0; p < 4; p++) {
-      const x = 100 + 146 * p;
-      const y = py(a.positions[p] ?? 0xa8);
-      const selling = a.sellers[p] === 1;
-      const lead = land ? a.buyer === p : a.buyer === p || a.seller === p;
-      this.img(walkerKey(this.race(p)), x, y + 32, 1.6, { ox: 0.5, oy: 1, tint: this.color(p) });
-      this.say(this.name(p), x, 334, 14, this.textColor(p), 0.5);
-      const units = land ? "" : `  ${this.v("GoodsPlayersNb", a.good * 4 + p)} UNITS`;
-      this.say((selling ? "SELLER" : "BUYER") + units, x, 350, 12, "#aaa", 0.5);
-      const bid = a.bids[p] ?? 0;
-      if (bid) this.say(`$${bid}`, x + 24, y - 8, 16, lead ? "#ff0" : "#fff");
+    const round = this.v("NumRound");
+    if (land) {
+      const second = a.ended ? (a.winner < 4 ? "PLOT IS SOLD!" : "PLOT DIDN'T SELL!")
+        : a.buyer < 4 && a.high ? `HIGH BID IS $${a.high}` : "NO BIDS TENDERED";
+      this.auctionTop(`LAND AUCTION #${round}`, second, 5, false);
     }
-    if (a.traded > 0) this.top.lineStyle(3, 0xffff00).lineBetween(0, py(a.positions[a.buyer] ?? 0), WIDTH, py(a.positions[a.buyer] ?? 0));
-    // The time bar.
-    this.g.fillStyle(0x40c040).fillRect(16, 316, Math.min(a.time, 255) * 2.4, 6);
+    else this.auctionTop(`AUCTION #${round}`, GOODS[a.good] ?? "", a.good, true);
+    const ink = hiresInk(0x02, 0x08);
+    // The store's prices: it sells at the top of the scale and buys at the bottom.
+    if (!land && a.priceEnd) {
+      if (a.storeSells) {
+        this.at(String(a.priceEnd), "n", 32, 59, ink);
+        this.img("store-booth", cellX("n", 33), py(76), 0.8, { ox: 0.5 });
+      }
+      this.at(String(a.priceStart), "n", 4, 163, ink);
+      this.img("store-booth", cellX("n", 5), py(146), 0.8, { ox: 0.5 });
+    }
+    // The bidding lines: the best buyer's and the best seller's, dotted across the columns.
+    const dots = (line: number, colour: number) => {
+      this.top.fillStyle(atariColor(colour));
+      for (let x = cellX("n", 9); x < cellX("n", 31); x += 8) this.top.fillRect(x, py(line), 4, 2);
+    };
+    if (a.buyer < 4) dots(a.positions[a.buyer] ?? 0x9b, 0x02);
+    if (!land && a.seller < 4) dots(a.positions[a.seller] ?? 0x54, 0x02);
+    // The time bar (column 37), shrinking from 40 scanlines.
+    const h = Math.round((Math.min(a.time, a.maxTime) / Math.max(1, a.maxTime)) * 40);
+    if (h > 0) this.g.fillStyle(atariColor(0x02)).fillRect(cellX("n", 37) + 4, py(155 - h), 8, h * 2);
+    for (let p = 0; p < 4; p++) {
+      const selling = a.sellers[p] === 1;
+      if (selling) this.at("SELL", "n", 8 + 6 * p, 51, ink);
+      else this.at("BUY", "n", 9 + 6 * p, 179, ink);
+      const line = a.positions[p] ?? 0xa8;
+      this.auctionWalker(p, line);
+      const bid = a.bids[p] ?? 0;
+      if (bid) this.at(String(bid), "n", 12 + 6 * p, line, a.buyer === p || a.seller === p ? 0x1e : ink);
+    }
+    if (a.traded > 0 && a.buyer < 4) dots(a.positions[a.buyer] ?? 0, 0x1e);
+    this.auctionRows(land ? null : a.units, "TRADED", "UNITS");
+    if (land) this.messageRow(m.message.trim() || `BIDS START AT $${a.priceStart}`, 0xc4);
+    else if (!a.priceEnd) this.messageRow("PUSH STICK TO DECLARE AS BUYER OR SELLER", 0xc4);
+    else this.messageRow(m.message.trim(), 0xc4);
   }
 
   private goodsStatus() {
     const m = this.d.model, s = m.goodsStatus;
-    this.g.fillStyle(0x102010).fillRect(0, 0, WIDTH, HEIGHT);
-    this.img(`good-${GOOD_KEYS[s.good] ?? "food"}`, 16, 8);
-    this.say(`${GOODS[s.good] ?? ""} STATUS   ${MONTHS[this.v("NumRound")] ?? ""} MONTH`, 76, 14, 20);
-    const base = 330;
-    for (let p = 0; p < 4; p++) {
-      const x = 90 + 146 * p;
-      this.img(walkerKey(this.race(p)), x, base + 60, 1.4, { ox: 0.5, oy: 1, tint: this.color(p) });
-      this.say(this.name(p), x, base + 64, 14, this.textColor(p), 0.5);
-      let i = 0;
-      for (const [kind, bars] of s.bars) {
-        const h = Math.min(bars.to[p] ?? 0, 250);
-        const c = [0x60a0ff, 0xffc040, 0xff6060, 0x60ff60][kind % 4];
-        this.g.fillStyle(c).fillRect(x - 40 + i * 16, base - h, 12, h);
-        i++;
-      }
-      const req = s.required[p];
-      if (req !== undefined) this.g.lineStyle(2, 0xffffff).lineBetween(x - 44, base - req, x + 44, base - req);
-      this.say(`${this.v("GoodsPlayersNb", s.good * 4 + p)}`, x, base + 82, 14, "#fff", 0.5);
+    const good = s.good;
+    this.auctionTop(`STATUS #${this.v("NumRound")}`, GOODS[good] ?? "", good, true);
+    const ink = hiresInk(0x02, 0x08);
+    // The store's prices.
+    const buys = this.v("GoodsPrice", good);
+    if (buys) {
+      this.at(String(buys + 35 * (good === 3 ? 4 : 1)), "n", 32, 51, ink);
+      this.img("store-booth", cellX("n", 33), py(68), 0.8, { ox: 0.5 });
+      this.at(String(buys), "n", 4, 163, ink);
+      this.img("store-booth", cellX("n", 5), py(146), 0.8, { ox: 0.5 });
     }
-    this.say(`STORE: ${this.v("GoodsStoreNb", s.good)}   PRICE $${this.v("GoodsPrice", s.good)}`, WIDTH / 2, 56, 16, "#ccc", 0.5);
+    // Each player's bar: a scanline per quarter unit, up to 96, from line 155; the newest bars move a
+    // quarter unit a frame from where they were.
+    const bars = s.bars.get(s.last);
+    for (let p = 0; p < 4; p++) {
+      let h = this.v("GoodsPlayersNb", good * 4 + p) * 4;
+      if (bars) {
+        const from = bars.from[p] ?? 0, to = bars.to[p] ?? 0;
+        const steps = Math.floor((m.tick - bars.tick) / 2);
+        h = from + Math.sign(to - from) * Math.min(Math.abs(to - from), steps);
+      }
+      h = Math.max(0, Math.min(96, h));
+      const x = px(0x57 + 0x18 * p) + 8;
+      if (h > 0) this.g.fillStyle(this.color(p)).fillRect(x, py(155 - h), 20, h * 2);
+      const req = s.required[p];
+      if (req !== undefined) this.top.lineStyle(2, atariColor(0x0e)).lineBetween(x - 8, py(155 - Math.min(96, req)), x + 28, py(155 - Math.min(96, req)));
+    }
+    this.auctionRows(Array.from({ length: 4 }, (_, p) => this.v("GoodsPlayersNb", good * 4 + p)), "UNITS", "UNITS");
+    const what = m.message.trim() || ["PREVIOUS AMOUNT", "USAGE", "SPOILAGE", "PRODUCTION"][Math.max(0, s.last)] || "";
+    this.messageRow(what, 0x94);
   }
 
+  /** The status summary ($6D7A): four rows per player in rank order, in the player's colour, the
+   * colony's total, the scrolling message and the button line. */
   private score() {
     const m = this.d.model, sc = m.score;
-    this.g.fillStyle(0x201010).fillRect(0, 0, WIDTH, HEIGHT);
+    this.g.fillStyle(0x000000).fillRect(0, 0, WIDTH, HEIGHT);
     if (!sc) return;
-    this.say(sc.round ? `STATUS AFTER THE ${MONTHS[sc.round]} MONTH` : "THE COLONISTS", WIDTH / 2, 40, 20, "#fff", 0.5);
-    const cols = [230, 330, 430, 540];
-    SCORE_KINDS.forEach((k, i) => this.say(k, cols[i], 80, 14, "#aaa", 1));
-    sc.order.forEach((p, row) => {
+    if (sc.walk.length && !m.message) {
+      // The players walk in to their places first (the screen is still empty).
+      for (const w of sc.walk) {
+        const p = sc.order[w.slot];
+        if (p !== undefined && p < 4) this.img(walkerKey(this.race(p)), px(w.x) + 16, py(w.y) + 36, 1, { ox: 0.5, oy: 1, tint: this.color(p) });
+      }
+      return;
+    }
+    this.at(sc.round ? `STATUS SUMMARY #${sc.round}` : "THE COLONISTS", "w", 1, 32, 0x26);
+    sc.order.forEach((p, rank) => {
       if (p > 3) return;
-      const y = 104 + row * 60;
-      this.img(portraitKey(this.race(p)), 20, y, 0.55, { tint: this.color(p) });
-      this.say(this.name(p), 80, y + 16, 16, this.textColor(p));
-      for (let k = 0; k < 4; k++) this.say(`$${sc.scores[k * 4 + p] ?? 0}`, cols[k], y + 16, 16, "#fff", 1);
+      const colour = this.v("PlayersColor", p) || [196, 132, 52, 84][p];
+      SCORE_KINDS.forEach((k, i) => {
+        const line = 44 + 36 * rank + 8 * i;
+        this.at(k, "w", 3, line, colour);
+        const n = String(sc.scores[i * 4 + p] ?? 0);
+        this.at(n, "w", rightAt(n, 17), line, colour);
+      });
     });
-    this.say(`COLONY $${sc.colony}`, cols[3], 350, 18, "#ff0", 1);
+    this.at("COLONY", "w", 2, 188, 0x26);
+    const colony = String(sc.colony);
+    this.at(colony, "w", rightAt(colony, 17), 188, 0x26);
+    // The message scrolls across the tall row.
+    const msg = m.message.trim();
+    if (msg) {
+      const text = "   " + msg + "   ";
+      const offset = Math.floor(m.tick / 8) % (text.length + 20);
+      this.at(text.slice(Math.max(0, offset - 20), offset), "b", Math.max(0, 20 - offset), 200, 0x08);
+    }
+    if (m.pressText) this.at(m.pressText, "n", centre(m.pressText, 40), 216, hiresInk(0x08, 0x00));
   }
 
+  /** The map's and the town's message rows: two 20-column rows at the bottom (lines 216 and 224), or
+   * three 40-column rows when the text is longer. */
   private footer() {
     const m = this.d.model;
-    if (m.screen === "wait") return;
-    const y = 368;
-    this.g.fillStyle(0x000000, 0.85).fillRect(0, y, WIDTH, HEIGHT - y);
-    const lines = [m.eventText, m.turnText, m.message].filter((t) => t);
-    let ty = y + 8;
-    for (const l of lines) {
-      this.wrap(l, WIDTH / 2, ty, WIDTH - 32, 16, "#fff");
-      ty += l.length > 60 ? 40 : 22;
+    if (m.screen !== "map" && m.screen !== "town") return;
+    // The turn's start prompt is a 40-column row at line 224 on the map ($B6CC).
+    const start = m.screen === "map" && /TO START|TAKING HIS TURN/.test(m.message);
+    if (start) this.at(m.message, "n", 4, 224, 0xf4);
+    const text = [m.eventText, m.turnText, start ? "" : m.message].filter((t) => t.trim()).join("  ");
+    const top = m.screen === "town" ? 208 : 216;
+    if (text) {
+      const wide = wrapLines(text, 20);
+      if (wide.length <= 2) wide.forEach((l, i) => this.atCentre(l, "w", top + 8 * i, 0xf4));
+      else wrapLines(text, 40).slice(0, 3).forEach((l, i) => this.atCentre(l, "n", top + 8 * i, 0xf4));
     }
-    if (m.inTurn && (m.screen === "map" || m.screen === "town")) {
+    // The turn's time: a bar at the right edge, shrinking down to line 194.
+    if (m.inTurn) {
       const cp = this.v("CurrentPlayer");
-      this.g.fillStyle(this.color(cp)).fillRect(16, HEIGHT - 20, this.v("turnTime") * 4, 10);
+      const h = Math.min(96, this.v("turnTime"));
+      this.g.fillStyle(this.color(cp)).fillRect(cellX("n", 38), py(194 - h), 8, h * 2);
     }
-    // Each player's money, in their colour.
-    for (let p = 0; p < 4; p++)
-      this.say(`${this.name(p)} $${this.v("PlayersCash", p)}`, 16 + 156 * p, HEIGHT - 42, 13, this.textColor(p));
   }
 }
 

@@ -89,6 +89,7 @@ public static partial class PlayerTurn
             t.Mask = 0x0F;
             MapMode(game, t);
             game.Emit(new TurnStartedEvent(cp));
+            game.Emit(new TitleEvent($"DEVELOPMENT #{g.NumRound}"));
             bool cpu = (g.MaxIndexCpu & 0x80) == 0 && cp <= g.MaxIndexCpu;
             byte ctrl;
             if (cpu)

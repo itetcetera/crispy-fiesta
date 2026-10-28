@@ -269,7 +269,11 @@ public sealed class Atari800 : IBus
         {
             Line = 0;
             Frame++;
-            if (Picture != null) Array.Copy(_drawing, Picture, Picture.Length);
+            if (Picture != null)
+            {
+                Array.Copy(_drawing, Picture, Picture.Length);
+                for (int i = 0; i < Lines; i++) _lineColors[i].CopyTo(LineColors[i], 0);
+            }
         }
     }
 
@@ -484,7 +488,7 @@ public sealed class Atari800 : IBus
             }
             if ((ins & 0x40) != 0) { scan = (ushort)(Ram[pc] | Ram[(ushort)(pc + 1)] << 8); pc += 2; }
             int bytes = ModeBytes(mode);
-            var sb = new System.Text.StringBuilder($"{line,3} m{mode:X}{((ins & 0x80) != 0 ? "*" : " ")} {scan:X4} ");
+            var sb = new System.Text.StringBuilder($"{line,3} m{mode:X}{((ins & 0x80) != 0 ? "*" : " ")} {scan:X4} pf {Convert.ToHexString(LineColors[line], 4, 5)} ");
             if (mode <= 7)
                 for (int i = 0; i < bytes; i++)
                 {
@@ -578,10 +582,15 @@ public sealed class Atari800 : IBus
 
     /// <summary>Composes the current scanline: playfield (hi-res text as playfield 1's luminance on
     /// playfield 2), then the players and missiles by the priority register.</summary>
+    /// <summary>The colour registers on each scanline of the last whole frame (COLPM0-3, COLPF0-3, COLBK).</summary>
+    public readonly byte[][] LineColors = Enumerable.Range(0, Lines).Select(_ => new byte[9]).ToArray();
+    readonly byte[][] _lineColors = Enumerable.Range(0, Lines).Select(_ => new byte[9]).ToArray();
+
     void DrawLine()
     {
         int y = Line - FirstDisplayLine;
         if (y < 0 || y >= PictureHeight) return;
+        _color.CopyTo(_lineColors[Line], 0);
         bool fifth = (_prior & 0x10) != 0;
         for (int px = 0; px < PictureWidth; px++)
         {

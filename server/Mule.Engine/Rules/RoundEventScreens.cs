@@ -84,7 +84,7 @@ public static class RoundEventScreens
         if (!r.Shown) yield break;
         int plot = r.Plot;
         int food = before[plot];
-        game.Emit(new TitleEvent("PEST ATTACK"));
+        game.Emit(new TitleEvent("  PEST ATTACK"));
         // Six segments, head first ($9F x, $89 y); the seventh slot is what shifts out.
         var px = new byte[7];
         var py = new byte[7];
@@ -184,7 +184,7 @@ public static class RoundEventScreens
     {
         var g = game.State;
         yield return GameLoop.AnimMapProd(game);
-        game.Emit(new TitleEvent("PIRATE SHIP"));
+        game.Emit(new TitleEvent("   PIRATE SHIP"));
         byte exp = (byte)((g.Level == 2 ? Good.Crystite : Good.Smithore) + 1);
         var hit = new List<int>();
         for (int x = 44; x >= 0; x--) if (g.PlotsExp[x] == exp) hit.Add(x);
@@ -337,7 +337,7 @@ public static class RoundEventScreens
     /// <summary>$722E: sixteen shakes nineteen frames apart, then the effect and the production.</summary>
     static IEnumerable Planetquake(Game game)
     {
-        game.Emit(new TitleEvent("PLANETQUAKE"));
+        game.Emit(new TitleEvent("  PLANETQUAKE"));
         game.Emit(new MessageEvent("MINING PRODUCTION HALF OF NORMAL."));
         var r = Apply(game, RoundEventKind.Planetquake);
         // A rumble on voices 1 to 3 that dies away over the sixteen shakes.
@@ -442,7 +442,7 @@ public static class RoundEventScreens
             yield return GameLoop.AnimMapProd(game);
             yield break;
         }
-        game.Emit(new TitleEvent("RADIATION"));
+        game.Emit(new TitleEvent(" RADIATION"));
         game.Emit(new MessageEvent("MULE GOES CRAZY!"));
         int total = 0;
         // Each jump's sound on voice 1 ($7F4F): a buzz rising a step and a volume lower with every step,

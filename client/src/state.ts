@@ -22,6 +22,9 @@ export interface Auction {
   time: number;           // the auction's time bar
   traded: number;         // frames left to flash the last trade
   winner: number;         // the land auction's winner (255 none)
+  units: number[];        // units each player has traded in this auction
+  maxTime: number;        // the time bar's length when full
+  ended: boolean;         // the land auction is over
 }
 
 export interface Score {
@@ -43,6 +46,7 @@ export interface RoundStep {
 const newAuction = (): Auction => ({
   plot: -1, good: -1, priceStart: 0, priceEnd: 0, positions: [0xa8, 0xa8, 0xa8, 0xa8], bids: [0, 0, 0, 0],
   sellers: [0, 0, 0, 0], storeSells: false, high: 0, low: 0, buyer: 255, seller: 255, time: 0, traded: 0, winner: 255,
+  units: [0, 0, 0, 0], maxTime: 1, ended: false,
 });
 
 export class Model {
@@ -59,7 +63,9 @@ export class Model {
   ship: { x: number; pirates: boolean; takeOff: boolean } | null = null;
   roundStep: RoundStep | null = null;
   auction = newAuction();
-  goodsStatus = { good: -1, bars: new Map<number, { from: number[]; to: number[] }>(), required: [] as number[] };
+  goodsStatus = { good: -1, bars: new Map<number, { from: number[]; to: number[]; tick: number }>(), last: -1, required: [] as number[] };
+  /** The score screen's line under the scrolling message ("PRESS ALL PLAYER BUTTONS TO GO ON."). */
+  pressText = "";
   score: Score | null = null;
   over: { failed: boolean; rating: number } | null = null;
   turnPlayer = -1;
@@ -81,6 +87,7 @@ export class Model {
     this.tick = f.tick;
     for (const e of f.events) this.event(e);
     if (this.auction.traded > 0) this.auction.traded--;
+    if (this.auction.time > this.auction.maxTime) this.auction.maxTime = this.auction.time;
     // During a turn the walker's screen is the state's.
     if (this.inTurn && (this.screen === "map" || this.screen === "town"))
       this.screen = this.v("turnMap") === 1 ? "map" : "town";
@@ -96,9 +103,12 @@ export class Model {
       case "Title":
         this.title = String(e.title ?? "");
         break;
-      case "Message":
-        this.message = String(e.text ?? "");
+      case "Message": {
+        const text = String(e.text ?? "");
+        if (this.screen === "score" && /PRESS ALL|OPTION/.test(text)) this.pressText = text.trim();
+        else this.message = text;
         break;
+      }
       case "MapShown":
         this.screen = "map";
         this.title = this.message = "";
@@ -125,15 +135,16 @@ export class Model {
         Object.assign(this.auction, { positions: a("positions"), buyer: n("leader"), high: n("high"), time: n("time"), bids: a("bids") });
         break;
       case "AuctionEnded":
-        Object.assign(this.auction, { winner: n("winner"), high: n("price") });
+        Object.assign(this.auction, { winner: n("winner"), high: n("price"), ended: true });
         break;
       case "GoodsStatus":
         this.screen = "goodsStatus";
-        this.goodsStatus = { good: n("good"), bars: new Map(), required: [] };
+        this.goodsStatus = { good: n("good"), bars: new Map(), last: -1, required: [] };
         this.title = this.message = "";
         break;
       case "GoodsBars":
-        this.goodsStatus.bars.set(n("kind"), { from: a("from"), to: a("to") });
+        this.goodsStatus.bars.set(n("kind"), { from: a("from"), to: a("to"), tick: this.tick });
+        this.goodsStatus.last = n("kind");
         break;
       case "GoodsRequirement":
         this.goodsStatus.required = a("required");
@@ -154,9 +165,14 @@ export class Model {
           positions: a("positions"), buyer: n("buyer"), seller: n("seller"), high: n("high"), low: n("low"), time: n("time"), bids: a("bids"),
         });
         break;
-      case "GoodsTraded":
+      case "GoodsTraded": {
         this.auction.traded = 6;
+        const u = [...this.auction.units];
+        if (n("buyer") < 4) u[n("buyer")]++;
+        if (n("seller") < 4) u[n("seller")]++;
+        this.auction.units = u;
         break;
+      }
       case "TurnStarted":
         this.turnPlayer = n("player");
         this.screen = "map";
@@ -191,6 +207,7 @@ export class Model {
       case "ScoreShown":
         this.screen = "score";
         this.title = this.message = "";
+        this.pressText = "";
         this.score = { round: n("round"), order: a("order"), scores: a("scores"), colony: n("colony"), walk: [], firstFounder: -1 };
         break;
       case "ScoreWalk":

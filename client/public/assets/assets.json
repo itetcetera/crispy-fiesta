@@ -217,57 +217,49 @@
    "what": "The mountain wampus, when it shows."
   },
   {
-   "key": "town-street",
-   "file": "town-street.svg",
-   "width": 640,
-   "height": 40,
-   "group": "Town",
-   "what": "The town's street, between the two rows of buildings."
-  },
-  {
    "key": "town-ground",
    "file": "town-ground.svg",
-   "width": 640,
-   "height": 480,
+   "width": 384,
+   "height": 300,
    "group": "Town",
-   "what": "The town screen behind everything."
+   "what": "The town's yard behind the buildings (columns 8 to 31, scanlines 44 to 194; the street runs between the rows)."
   },
   {
    "key": "bldg-crystite",
    "file": "bldg-crystite.svg",
-   "width": 88,
-   "height": 120,
+   "width": 64,
+   "height": 64,
    "group": "Town",
    "what": "The crystite outfitter (top row, first)."
   },
   {
    "key": "bldg-smithore",
    "file": "bldg-smithore.svg",
-   "width": 88,
-   "height": 120,
+   "width": 64,
+   "height": 64,
    "group": "Town",
    "what": "The smithore outfitter (top row, second)."
   },
   {
    "key": "bldg-energy",
    "file": "bldg-energy.svg",
-   "width": 88,
-   "height": 120,
+   "width": 64,
+   "height": 64,
    "group": "Town",
    "what": "The energy outfitter (top row, third)."
   },
   {
    "key": "bldg-food",
    "file": "bldg-food.svg",
-   "width": 88,
-   "height": 120,
+   "width": 64,
+   "height": 64,
    "group": "Town",
    "what": "The food outfitter (top row, last)."
   },
   {
    "key": "bldg-assay",
    "file": "bldg-assay.svg",
-   "width": 88,
+   "width": 64,
    "height": 112,
    "group": "Town",
    "what": "The assay office (bottom row, first)."
@@ -275,26 +267,26 @@
   {
    "key": "bldg-land",
    "file": "bldg-land.svg",
-   "width": 80,
-   "height": 112,
+   "width": 64,
+   "height": 96,
    "group": "Town",
    "what": "The land office (bottom row, second)."
   },
   {
    "key": "bldg-pub",
    "file": "bldg-pub.svg",
-   "width": 80,
-   "height": 112,
+   "width": 64,
+   "height": 80,
    "group": "Town",
    "what": "The pub (bottom row, third)."
   },
   {
    "key": "bldg-corral",
    "file": "bldg-corral.svg",
-   "width": 120,
-   "height": 112,
+   "width": 96,
+   "height": 160,
    "group": "Town",
-   "what": "The M.U.L.E. corral (bottom row, right)."
+   "what": "The M.U.L.E. corral (bottom row, right), down to the money line; the mule price and MULES are written over its foot in dark grey, so keep the bottom 32 px light and plain."
   },
   {
    "key": "ship",

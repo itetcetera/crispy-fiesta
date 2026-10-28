@@ -39,35 +39,32 @@ export const STREET_BOTTOM = 0x5e;
 export const TOWN_LEFT = 0x49;
 export const TOWN_RIGHT = 0xad;
 export const doorX = (column: number) => 0x30 + 4 * column;
-/** The town screen's height for a walker's y: the town is drawn taller than the map (from $28, 4 pixels a unit). */
-export const townY = (y: number) => (y - 0x28) * 4;
+/** The town screen's height for a walker's y: the town's sprites are double-line, two scanlines a
+ * unit, so the street ($54 to $5E) lies between the shops (to line 91) and the offices (from 116). */
+export const townY = (y: number) => py(2 * (y - 0x26));
 
 /** The town's buildings and their door columns (unk_1E00 and unk_1E28). */
 export const TOWN_TOP = [
-  { key: "bldg-crystite", from: 10, to: 10 },
-  { key: "bldg-smithore", from: 16, to: 16 },
-  { key: "bldg-energy", from: 22, to: 22 },
-  { key: "bldg-food", from: 28, to: 28 },
+  { key: "bldg-crystite", from: 9, to: 9 },
+  { key: "bldg-smithore", from: 15, to: 15 },
+  { key: "bldg-energy", from: 21, to: 21 },
+  { key: "bldg-food", from: 27, to: 27 },
 ];
-export const TOWN_BOTTOM = [
-  { key: "bldg-assay", from: 10, to: 10 },
-  { key: "bldg-land", from: 15, to: 15 },
-  { key: "bldg-pub", from: 20, to: 20 },
-  { key: "bldg-corral", from: 25, to: 29 },
-];
+const LUMA = [0.6941, 0.7091, 0.7241, 0.7401, 0.756, 0.7741, 0.7931, 0.8121, 0.826, 0.847, 0.87, 0.893, 0.916, 0.942, 0.969, 1];
 
-/** An Atari colour byte (hue in the high nibble, luminance in the low) as an RGB number, NTSC. */
+/** An Atari colour byte (hue in the high nibble, luminance in the low) as an RGB number, by the Atari800
+ * emulator's default NTSC palette (as the test emulator's pictures of the original). */
 export function atariColor(c: number): number {
-  const hue = c >> 4, lum = (c & 15) >> 1;
-  const y = 0.08 + (lum / 7) * 0.86;
-  let i = 0, q = 0;
-  if (hue) {
-    const a = ((-33 + (hue - 1) * 25.7) * Math.PI) / 180;
-    i = 0.22 * Math.cos(a);
-    q = 0.22 * Math.sin(a);
-  }
-  const ch = (v: number) => Math.round(Math.max(0, Math.min(1, v)) * 255);
-  return (ch(y + 0.956 * i + 0.621 * q) << 16) | (ch(y - 0.272 * i - 0.647 * q) << 8) | ch(y - 1.106 * i + 1.703 * q);
+  const hue = c >> 4, lum = c & 15;
+  const a = ((303 + (hue - 1) * 26.8) * Math.PI) / 180, sat = hue ? 0.175 : 0;
+  const i = Math.cos(a) * sat, q = Math.sin(a) * sat;
+  const y = (LUMA[lum] - LUMA[0]) / (LUMA[15] - LUMA[0]);
+  const ch = (v: number) => {
+    v = Math.pow(Math.max(0, Math.min(1, v)), 2.35);
+    v = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+    return Math.floor(Math.max(0, Math.min(1, v)) * 255);
+  };
+  return (ch(y + 0.9563 * i + 0.621 * q) << 16) | (ch(y - 0.2721 * i - 0.6474 * q) << 8) | ch(y - 1.107 * i + 1.7046 * q);
 }
 
 export const css = (rgb: number) => "#" + rgb.toString(16).padStart(6, "0");

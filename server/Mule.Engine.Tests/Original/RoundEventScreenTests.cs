@@ -95,7 +95,7 @@ public class RoundEventScreenTests
         void Scan()
         {
             for (; seenEvents < game.Events.Count; seenEvents++)
-                if (game.Events[seenEvents] is TitleEvent { Title: "PRODUCTION" } && !shown) { shown = true; events.Add((VFrame(), "production")); }
+                if (game.Events[seenEvents] is TitleEvent pt && pt.Title.StartsWith(" PRODUCTION") && !shown) { shown = true; events.Add((VFrame(), "production")); }
         }
         Scan();
         while (!game.Finished)

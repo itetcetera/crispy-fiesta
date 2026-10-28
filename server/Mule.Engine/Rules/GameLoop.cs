@@ -219,7 +219,7 @@ public static class GameLoop
         var g = game.State;
         game.Trace?.Invoke("prod anim");
         if (g.NumRound == 0) yield break;
-        game.Emit(new TitleEvent("PRODUCTION"));
+        game.Emit(new TitleEvent($" PRODUCTION #{g.NumRound}"));
         // The title and the round number sometimes take the original past a frame (docs/PLAN.md,
         // timing effects).
         if (game.Race?.Invoke("prod title late") == true) yield return null;
